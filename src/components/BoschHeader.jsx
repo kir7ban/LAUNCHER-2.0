@@ -24,7 +24,6 @@ export default function BoschHeader() {
       { label: 'Templates' },
       { label: 'Execution History' },
     ]},
-    { label: 'Analytics', href: '#', subNavigation: [], isAgentDropdown: false },
     { label: 'Settings', href: '#', subNavigation: [], isAgentDropdown: false },
   ];
 

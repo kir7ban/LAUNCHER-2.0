@@ -3,6 +3,7 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  position: relative;
 }
 
 /* App body: sidebar + main content, between header and footer */
@@ -11,6 +12,7 @@
   flex: 1;
   overflow: hidden;
   position: relative;
+  z-index: 1;
 }
 
 .main-content {
@@ -21,7 +23,8 @@
   transition: margin-left var(--transition-normal);
   overflow-y: auto;
   overflow-x: hidden;
-  min-height: 0; /* allow flex child to shrink below content size */
+  min-height: 0;
+  background: rgba(245, 246, 248, 0.45);
 }
 
 .main-content.sidebar-collapsed {
@@ -53,8 +56,10 @@
 }
 
 .agent-card-large {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(220, 222, 229, 0.5);
   border-radius: var(--radius-lg);
   padding: 24px;
   cursor: pointer;
@@ -171,8 +176,10 @@
 }
 
 .workflow-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(220, 222, 229, 0.5);
   border-radius: var(--radius-lg);
   padding: 20px;
   transition: all var(--transition-normal);

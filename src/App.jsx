@@ -6,6 +6,7 @@ import DashboardHeader from './components/DashboardHeader';
 import AgentDetailModal from './components/AgentDetailModal';
 import BoschHeader from './components/BoschHeader';
 import BoschFooter from './components/BoschFooter';
+import InteractiveBackground from './components/InteractiveBackground';
 import { AgentProvider, useAgentContext } from './context/AgentContext';
 import './styles/App.css';
 
@@ -25,6 +26,7 @@ function AppContent() {
 
   return (
     <div className="app">
+      <InteractiveBackground />
       <BoschHeader />
       <div className="app-body">
         <Sidebar
@@ -86,11 +88,6 @@ function AppContent() {
               <WorkflowsPanel />
             </div>
           )}
-          {activeView === 'analytics' && (
-            <div className="analytics-view">
-              <AnalyticsPanel />
-            </div>
-          )}
           </div>
           <BoschFooter />
         </div>
@@ -138,59 +135,6 @@ function WorkflowsPanel() {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function AnalyticsPanel() {
-  const { agents } = useAgentContext();
-  const totalTasks = agents.reduce((sum, a) => sum + a.tasksCompleted, 0);
-  const activeAgents = agents.filter((a) => a.status === 'active').length;
-
-  return (
-    <div className="analytics-container">
-      <h2>Analytics Overview</h2>
-      <div className="analytics-cards">
-        <div className="analytics-card">
-          <div className="analytics-card-icon">🤖</div>
-          <div className="analytics-card-data">
-            <span className="analytics-value">{agents.length}</span>
-            <span className="analytics-label">Total Agents</span>
-          </div>
-        </div>
-        <div className="analytics-card">
-          <div className="analytics-card-icon">✅</div>
-          <div className="analytics-card-data">
-            <span className="analytics-value">{activeAgents}</span>
-            <span className="analytics-label">Active Now</span>
-          </div>
-        </div>
-        <div className="analytics-card">
-          <div className="analytics-card-icon">📊</div>
-          <div className="analytics-card-data">
-            <span className="analytics-value">{totalTasks}</span>
-            <span className="analytics-label">Tasks Completed</span>
-          </div>
-        </div>
-        <div className="analytics-card">
-          <div className="analytics-card-icon">⚡</div>
-          <div className="analytics-card-data">
-            <span className="analytics-value">98.5%</span>
-            <span className="analytics-label">Uptime</span>
-          </div>
-        </div>
-      </div>
-      <div className="analytics-chart-placeholder">
-        <h3>Agent Activity (Last 7 Days)</h3>
-        <div className="mini-chart">
-          {[65, 80, 45, 90, 70, 85, 95].map((val, i) => (
-            <div key={i} className="chart-bar-wrapper">
-              <div className="chart-bar" style={{ height: `${val}%` }} />
-              <span className="chart-label">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

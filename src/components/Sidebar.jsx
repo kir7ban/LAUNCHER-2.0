@@ -10,7 +10,6 @@ export default function Sidebar({ collapsed, onToggle, activeView, onViewChange 
     { id: 'chat', icon: '💬', label: 'Chat' },
     { id: 'agents', icon: '🤖', label: 'Agents' },
     { id: 'workflows', icon: '🔗', label: 'Workflows' },
-    { id: 'analytics', icon: '📈', label: 'Analytics' },
   ];
 
   return (

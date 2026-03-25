@@ -11,7 +11,6 @@ export default function DashboardHeader({ activeView }) {
     chat: 'Orchestrator Chat',
     agents: 'Agent Management',
     workflows: 'Workflow Orchestrations',
-    analytics: 'Analytics & Monitoring',
   };
 
   return (

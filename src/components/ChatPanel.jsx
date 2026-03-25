@@ -134,6 +134,17 @@ export default function ChatPanel({ fresh = false }) {
   return (
     <div className="chat-panel">
       <div className="messages-area">
+        {messages.length === 0 && (
+          <div className="chat-welcome">
+            <div className="chat-welcome-icon">
+              <span className="genie-sparkle">✨</span>
+              <span className="genie-lamp">🧞</span>
+              <span className="genie-sparkle">✨</span>
+            </div>
+            <h2 className="chat-welcome-title">This is <span className="genie-brand">BDO Genie</span></h2>
+            <p className="chat-welcome-sub">Your one stop solution to everything.</p>
+          </div>
+        )}
         {messages.map((msg) => (
           <div key={msg.id} className={`message message-${msg.role}`}>
             {msg.role === 'user' && (

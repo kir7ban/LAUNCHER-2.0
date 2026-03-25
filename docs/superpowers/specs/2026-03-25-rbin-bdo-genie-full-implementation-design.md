@@ -95,7 +95,7 @@ Example flows:
 
 **Triage Process (fallback):**
 - entry -> "I've analyzed your request and classified it as [category]. Routing to [agent name] for resolution."
-- Then hands off to the matched agent's entry state.
+- Hand-off mechanics: After Triage responds, the orchestrator picks a "best guess" agent from a secondary keyword scan or defaults to Facility & IT Support. The conversation's `activeAgent` is updated to the new agent, and a second orchestrator message appears: "Connecting you with [Agent Name]...". Then the new agent's `entry` state fires normally. The user sees: Triage classification -> orchestrator hand-off -> agent response. If no agent can be matched even by Triage, the orchestrator responds: "I wasn't able to route your request. Could you rephrase or try one of these options?" with suggestion chips.
 
 ### Response Pipeline
 
@@ -103,12 +103,17 @@ Every user message is processed as:
 
 1. **0ms:** User message appears in chat
 2. **200ms:** Orchestrator typing indicator appears
-3. **800ms:** Orchestrator message with routing plan + delegation cards (all "pending")
-4. **800-1200ms:** Delegation cards animate: first card -> "in-progress"
-5. **1500ms:** Agent typing indicator appears
-6. **2000-2500ms:** Agent response with context-appropriate answer
-7. **2500ms:** All delegation cards -> "completed"
-8. If conversation tree has follow-up question, agent's response includes it
+3. **800ms:** Orchestrator message renders with delegation cards — all cards start as "pending"
+4. **1000ms:** First delegation card transitions to "in-progress"
+5. **1300ms:** Second delegation card transitions to "in-progress" (first remains in-progress)
+6. **1500ms:** Agent typing indicator appears below orchestrator message
+7. **2200ms:** Agent response appears with context-appropriate answer
+8. **2200ms:** All delegation cards transition to "completed" sequentially (300ms stagger between each)
+9. If conversation tree has follow-up question, agent's response includes it
+
+**In-flight message handling:** If the user sends a new message while a response pipeline is still running, the in-flight pipeline completes normally. The new message is queued and its pipeline starts after the previous one finishes (responses never interleave).
+
+**Message ID generation:** Use `crypto.randomUUID()` (or a counter managed by the service layer, not derived from `messages.length`) to avoid ID collisions from stale closures.
 
 ### Conversation State
 
@@ -157,11 +162,16 @@ Agent responses appear with character-by-character reveal:
 
 ### Conversation Persistence
 
-- `AgentContext` stores messages per conversation: `messagesMap: { [convId]: Message[] }`
-- Switching conversations loads the correct message array
-- "New Chat" button: creates a new conversation, sets it active, clears chat to welcome screen
-- Sidebar conversation title: auto-set to first user message (truncated to ~40 chars)
-- New conversations appear at top of sidebar list
+Migration from flat `messages` array to per-conversation storage:
+
+- **State shape:** Replace `messages` with `messagesMap: { [convId]: Message[] }`. The existing hardcoded messages become the initial value for `conv-1`: `messagesMap: { 'conv-1': [...initialMessages] }`.
+- **Active messages:** A derived value — `const messages = messagesMap[activeConversation] || []`.
+- **`sendMessage` scoping:** `sendMessage(content)` writes to `messagesMap[activeConversation]`. The mock orchestrator service receives both `content` and `activeConversation` so it can read conversation state.
+- **`ChatPanel` fresh mode:** The `fresh` prop (used by dashboard compact widget) still uses isolated `localMessages` state. When the user submits input in fresh mode, the dashboard creates a new conversation in context, adds the message to it, and navigates to the chat view with that conversation active.
+- **`setConversations` exposed:** Add `setConversations` to the context provider value so new conversations can be created from sidebar, dashboard, and agent modal.
+- **New Chat:** Creates a new conversation with `id: 'conv-' + Date.now()`, adds it to conversations list at top, sets it as active. Chat view shows empty welcome screen.
+- **Conversation title:** Auto-set to the first user message, truncated to 40 characters at the nearest word boundary with "..." appended if truncated.
+- New conversations appear at top of sidebar list.
 
 ### Template Prompts
 
@@ -214,13 +224,25 @@ Replace current `DashboardLanding` (which just renders `ChatPanel fresh`) with a
 
 ### Compact Chat Widget
 - Shows BDO Genie welcome message + input bar
-- On user input: navigates to full chat view with the message sent
+- On user input: creates a new conversation in context, adds the message, navigates to chat view with that conversation active
+
+### Navigation-with-Message Pattern
+
+Multiple features need to navigate to chat with a pre-filled message (dashboard quick actions, compact widget, agent modal "Send Task"). Replace the existing `setTimeout(..., 100)` hack in `App.jsx` with a `pendingMessage` state in `AgentContext`:
+
+```js
+const [pendingMessage, setPendingMessage] = useState(null);
+```
+
+`ChatPanel` checks `pendingMessage` on mount/update via `useEffect`. If non-null, it calls `sendMessage(pendingMessage)` and then `setPendingMessage(null)`. This decouples navigation timing from message delivery. All entry points set `pendingMessage` instead of calling `sendMessage` directly after a view change.
 
 ---
 
 ## 4. Functional Views
 
 ### Agents View Enhancements
+
+**Important:** The agents grid is currently rendered as inline JSX in `App.jsx` (lines 49-85). `AgentPanel.jsx` exists but is not imported or rendered. The implementation must replace the inline grid in `App.jsx` with `<AgentPanel onSelectAgent={setSelectedAgent} />` and move all agent grid enhancements into `AgentPanel.jsx`.
 
 - **Filter bar:** Horizontal pill buttons — All / Active / Idle / Error. Filters the grid.
 - **Search:** Text input that filters agents by name or capability substring match.
@@ -229,11 +251,15 @@ Replace current `DashboardLanding` (which just renders `ChatPanel fresh`) with a
 - **"Pause/Activate Agent":** Toggles `agent.status` between 'active' and 'idle' in context state.
 - **"View Full Logs":** Expands the logs section in the modal with 10+ mock log entries (generated on demand).
 
+**AgentDetailModal prop changes:** The modal currently only receives `agent` and `onClose`. To support "Send Task" and "Pause/Activate", it must either: (a) receive additional props from `App.jsx` (`onSendTask`, `onToggleStatus`), or (b) call `useAgentContext()` directly for `setAgents` and use a new `onNavigateToChat` prop for navigation. Option (b) is preferred since it reduces prop threading. `App.jsx` passes `onNavigateToChat={(agentName) => { setSelectedAgent(null); setActiveView('chat'); setPendingMessage(...); }}` to the modal.
+
 ### Workflows View
 
 Extract `WorkflowsPanel` from `App.jsx` to `src/components/WorkflowsPanel.jsx`.
 
-- **Create workflow:** Button opens a modal with: workflow name input, multi-select agent picker, step editor (add/remove/reorder steps). Saves to local state.
+**Workflow data migration:** The existing hardcoded workflows reference agent names that don't exist in `AgentContext` (e.g., 'Researcher', 'Writer', 'Publisher'). Migrate the initial workflow data to use real agent names from `initialAgents` (e.g., 'Internet Reimbursement', 'EzyClaim', 'Triage Process'). Example: "Customer Support Pipeline" becomes steps using Triage Process -> EzyClaim -> Facility & IT Support.
+
+- **Create workflow:** Button opens a modal with: workflow name input, multi-select agent picker (listing agents from context by name), step editor (add/remove/reorder steps). Saves to local state.
 - **Run workflow:** Clicking "Run" starts a simulation — each step transitions through pending -> running -> completed with 1-2s delays. Status badges update in real-time.
 - **Workflow detail:** Clicking a workflow card opens an expanded view showing step-by-step progress with agent assignments and time estimates.
 - **Edit/Delete:** Edit reopens the create modal pre-filled. Delete removes from state with a confirmation.
@@ -310,9 +336,9 @@ Replace emoji UI chrome with `react-icons` (already installed):
 
 ### Responsive Breakpoints
 
-- **Desktop (>1024px):** Full sidebar + content
-- **Tablet (768-1024px):** Sidebar collapsed to icons only
-- **Mobile (<768px):** Sidebar hidden (hamburger toggle), chat full-width, agent grid single column, modals full-screen
+- **Desktop (>1024px):** Full sidebar + content. Dashboard: stats row 4-column, activity feed + quick actions side by side.
+- **Tablet (768-1024px):** Sidebar collapsed to icons only. Dashboard: stats row 2x2 grid, activity feed and quick actions stack vertically. Agent grid 2 columns.
+- **Mobile (<768px):** Sidebar hidden (hamburger toggle). Dashboard: stats row single column, compact chat widget hidden (user accesses chat via nav). Chat full-width. Agent grid single column. Modals full-screen. Workflow cards single column.
 
 ---
 

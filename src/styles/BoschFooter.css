@@ -1,0 +1,94 @@
+/* ===================================================================
+   Bosch Corporate Footer — Minimal variant (o-footer.-minimal)
+   Based on frontend.kit-npm-5.0.0 footer organism
+   Compact footer for dashboard / application views.
+   =================================================================== */
+
+.o-footer {
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+/* ---- Divider ---- */
+.o-footer__divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 0;
+}
+
+/* ---- Links ---- */
+.o-footer__links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.o-footer__link {
+  font-family: 'BoschSans', sans-serif;
+  font-size: var(--bosch-size-s, 0.875rem);
+  font-weight: 400;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.o-footer__link:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+/* ---- Bottom section (minimal: single row) ---- */
+.o-footer__bottom {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 0;
+  font-size: var(--bosch-size-s, 0.875rem);
+  gap: 0.5rem;
+}
+
+.o-footer__copyright {
+  font-family: 'BoschSans', sans-serif;
+  font-size: var(--bosch-size-s, 0.875rem);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.o-footer__bottom-links {
+  margin: 0;
+}
+
+.o-footer__bottom-links li {
+  margin-bottom: 0.5rem;
+}
+
+/* ---- Tablet and up: horizontal single-line layout ---- */
+@media (min-width: 768px) {
+  .o-footer__bottom {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    gap: 0;
+  }
+
+  .o-footer__copyright {
+    margin-right: 0;
+  }
+
+  .o-footer__bottom-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .o-footer__bottom-links li {
+    display: inline-block;
+    margin-bottom: 0;
+    margin-right: 1.5rem;
+  }
+
+  .o-footer__bottom-links li:last-child {
+    margin-right: 0;
+  }
+}

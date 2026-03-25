@@ -1,0 +1,81 @@
+/* ===== Bosch Corporate Fonts ===== */
+
+/* BoschSans Regular */
+@font-face {
+  font-family: 'BoschSans';
+  src: url('/fonts/boschsans_regular.woff2') format('woff2'),
+       url('/fonts/boschsans_regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* BoschSans Regular Italic */
+@font-face {
+  font-family: 'BoschSans';
+  src: url('/fonts/boschsans_regularItalic.woff2') format('woff2'),
+       url('/fonts/boschsans_regularItalic.woff') format('woff');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* BoschSans Medium */
+@font-face {
+  font-family: 'BoschSans';
+  src: url('/fonts/boschsans_medium.woff2') format('woff2'),
+       url('/fonts/boschsans_medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* BoschSans Medium Italic */
+@font-face {
+  font-family: 'BoschSans';
+  src: url('/fonts/boschsans_mediumItalic.woff2') format('woff2'),
+       url('/fonts/boschsans_mediumItalic.woff') format('woff');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* BoschSans Bold */
+@font-face {
+  font-family: 'BoschSans';
+  src: url('/fonts/boschsans_bold.woff2') format('woff2'),
+       url('/fonts/boschsans_bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* BoschSans Bold Italic */
+@font-face {
+  font-family: 'BoschSans';
+  src: url('/fonts/boschsans_boldItalic.woff2') format('woff2'),
+       url('/fonts/boschsans_boldItalic.woff') format('woff');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* BoschSans Black */
+@font-face {
+  font-family: 'BoschSans';
+  src: url('/fonts/boschsans_black.woff2') format('woff2'),
+       url('/fonts/boschsans_black.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* BoschSans Black Italic */
+@font-face {
+  font-family: 'BoschSans';
+  src: url('/fonts/boschsans_blackItalic.woff2') format('woff2'),
+       url('/fonts/boschsans_blackItalic.woff') format('woff');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}

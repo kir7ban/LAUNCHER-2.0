@@ -1,0 +1,256 @@
+@import './bosch-fonts.css';
+
+:root {
+  /* Color palette - light theme */
+  --bg-primary: #f5f6f8;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f0f1f4;
+  --bg-elevated: #ffffff;
+  --bg-hover: #ebedf2;
+  --bg-active: #e2e4eb;
+
+  --border-color: #dcdee5;
+  --border-light: #c8cbd6;
+
+  --text-primary: #1d1d1b;
+  --text-secondary: #525259;
+  --text-muted: #8f9099;
+  --text-inverse: #ffffff;
+
+  --accent-primary: #005691;
+  --accent-primary-hover: #007bc0;
+  --accent-secondary: #008ecf;
+  --accent-gradient: linear-gradient(135deg, #005691, #008ecf);
+
+  --success: #00884a;
+  --success-bg: rgba(0, 136, 74, 0.08);
+  --warning: #b38600;
+  --warning-bg: rgba(179, 134, 0, 0.08);
+  --danger: #d50005;
+  --danger-bg: rgba(213, 0, 5, 0.06);
+  --info: #005691;
+  --info-bg: rgba(0, 86, 145, 0.06);
+
+  /* Bosch Corporate Typography */
+  --font-family: 'BoschSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  /* Bosch typography scale (from frontend.kit) */
+  --bosch-size-s: 0.875rem;     /* 14px — small text, labels */
+  --bosch-size-sm: 0.9375rem;   /* 15px — body small */
+  --bosch-size-m: 1rem;         /* 16px — base body */
+  --bosch-size-l: 1.125rem;     /* 18px — large body, subheadings */
+  --bosch-size-xl: 1.5rem;      /* 24px — headings */
+  --bosch-size-2xl: 1.75rem;    /* 28px — section headings */
+  --bosch-size-3xl: 2rem;       /* 32px — page titles */
+  --bosch-size-4xl: 2.5rem;     /* 40px — hero text */
+
+  /* Mapped aliases for backward compat */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: var(--bosch-size-s);
+  --font-size-base: var(--bosch-size-sm);
+  --font-size-md: var(--bosch-size-m);
+  --font-size-lg: var(--bosch-size-l);
+  --font-size-xl: var(--bosch-size-xl);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 16px rgba(0, 86, 145, 0.1);
+
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 64px;
+  --header-height: 64px;
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s ease;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* Bosch spec: inherit font-family for form elements */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+}
+
+#root {
+  height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8adb8;
+}
+
+/* Utility classes */
+.btn-primary {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-outline:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-success {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-success:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.btn-sm {
+  padding: 5px 12px;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.btn-icon:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 50px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.status-badge.idle {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.status-badge.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+kbd {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  color: var(--text-muted);
+}

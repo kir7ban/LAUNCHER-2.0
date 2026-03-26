@@ -5,6 +5,7 @@ import DashboardLanding from './components/DashboardLanding';
 import DashboardHeader from './components/DashboardHeader';
 import AgentDetailModal from './components/AgentDetailModal';
 import AgentPanel from './components/AgentPanel';
+import WorkflowsPanel from './components/WorkflowsPanel';
 import BoschHeader from './components/BoschHeader';
 import BoschFooter from './components/BoschFooter';
 import InteractiveBackground from './components/InteractiveBackground';
@@ -70,47 +71,6 @@ function AppContent() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-function WorkflowsPanel() {
-  const workflows = [
-    { id: 1, name: 'Customer Support Pipeline', steps: 4, status: 'active', lastRun: '2 min ago', agents: ['Researcher', 'Writer', 'Reviewer'] },
-    { id: 2, name: 'Data Analysis Flow', steps: 3, status: 'idle', lastRun: '1 hr ago', agents: ['Data Analyst', 'Researcher'] },
-    { id: 3, name: 'Content Generation', steps: 5, status: 'active', lastRun: '5 min ago', agents: ['Writer', 'Reviewer', 'Publisher'] },
-    { id: 4, name: 'Code Review Pipeline', steps: 3, status: 'error', lastRun: '30 min ago', agents: ['Code Agent', 'Reviewer'] },
-  ];
-
-  return (
-    <div className="workflows-container">
-      <div className="workflows-header">
-        <h2>Workflow Orchestrations</h2>
-        <button className="btn-primary">+ New Workflow</button>
-      </div>
-      <div className="workflows-list">
-        {workflows.map((wf) => (
-          <div key={wf.id} className={`workflow-card status-${wf.status}`}>
-            <div className="workflow-card-top">
-              <h3>{wf.name}</h3>
-              <span className={`status-badge ${wf.status}`}>{wf.status}</span>
-            </div>
-            <div className="workflow-meta">
-              <span>🔗 {wf.steps} steps</span>
-              <span>⏱️ {wf.lastRun}</span>
-            </div>
-            <div className="workflow-agents">
-              {wf.agents.map((a, i) => (
-                <span key={i} className="workflow-agent-chip">{a}</span>
-              ))}
-            </div>
-            <div className="workflow-actions">
-              <button className="btn-sm btn-outline">View</button>
-              <button className="btn-sm btn-primary">Run</button>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

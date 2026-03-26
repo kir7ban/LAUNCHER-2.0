@@ -1,8 +1,53 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useAgentContext } from '../context/AgentContext';
 import '../styles/AgentDetailModal.css';
 
-export default function AgentDetailModal({ agent, onClose }) {
+export default function AgentDetailModal({ agent, onClose, onNavigateToChat }) {
+  const { setAgents } = useAgentContext();
+  const [showAllLogs, setShowAllLogs] = useState(false);
+
   if (!agent) return null;
+
+  const handleSendTask = () => {
+    onClose();
+    if (onNavigateToChat) onNavigateToChat(agent.name);
+  };
+
+  const handleToggleStatus = () => {
+    setAgents(prev => prev.map(a =>
+      a.id === agent.id
+        ? { ...a, status: a.status === 'active' ? 'idle' : 'active' }
+        : a
+    ));
+  };
+
+  const generateMockLogs = () => {
+    const types = ['info', 'success', 'warning', 'error'];
+    const messages = [
+      'Processing incoming request',
+      'Task completed successfully',
+      'Response time exceeded threshold',
+      'Connection retry attempt',
+      'Data validation passed',
+      'Cache refreshed',
+      'Scheduled maintenance check',
+      'User session authenticated',
+      'Report generated and sent',
+      'Configuration updated',
+      'Health check passed',
+      'Queue processing complete',
+      'Rate limit warning',
+      'Backup completed',
+      'API response cached',
+    ];
+    return messages.map((msg, i) => ({
+      time: `${String(9 + Math.floor(i / 4)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}:00`,
+      message: msg,
+      type: types[i % types.length],
+    }));
+  };
+
+  const displayedLogs = showAllLogs ? generateMockLogs() : agent.logs;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -52,9 +97,9 @@ export default function AgentDetailModal({ agent, onClose }) {
         </div>
 
         <div className="modal-section">
-          <h3>Recent Activity</h3>
+          <h3>{showAllLogs ? 'Full Logs' : 'Recent Activity'}</h3>
           <div className="logs-list">
-            {agent.logs.map((log, i) => (
+            {displayedLogs.map((log, i) => (
               <div key={i} className={`log-entry log-${log.type}`}>
                 <span className="log-time">{log.time}</span>
                 <span className="log-message">{log.message}</span>
@@ -64,12 +109,14 @@ export default function AgentDetailModal({ agent, onClose }) {
         </div>
 
         <div className="modal-actions">
-          <button className="btn-primary">Send Task</button>
-          <button className="btn-outline">View Full Logs</button>
+          <button className="btn-primary" onClick={handleSendTask}>Send Task</button>
+          <button className="btn-outline" onClick={() => setShowAllLogs(!showAllLogs)}>
+            {showAllLogs ? 'Show Recent' : 'View Full Logs'}
+          </button>
           {agent.status === 'active' ? (
-            <button className="btn-danger">Pause Agent</button>
+            <button className="btn-danger" onClick={handleToggleStatus}>Pause Agent</button>
           ) : (
-            <button className="btn-success">Activate Agent</button>
+            <button className="btn-success" onClick={handleToggleStatus}>Activate Agent</button>
           )}
         </div>
       </div>

@@ -4,6 +4,7 @@ import ChatPanel from './components/ChatPanel';
 import DashboardLanding from './components/DashboardLanding';
 import DashboardHeader from './components/DashboardHeader';
 import AgentDetailModal from './components/AgentDetailModal';
+import AgentPanel from './components/AgentPanel';
 import BoschHeader from './components/BoschHeader';
 import BoschFooter from './components/BoschFooter';
 import InteractiveBackground from './components/InteractiveBackground';
@@ -46,41 +47,7 @@ function AppContent() {
             </div>
           )}
           {activeView === 'agents' && (
-            <div className="agents-grid-view">
-              {agents.map((agent) => (
-                <div
-                  key={agent.id}
-                  className={`agent-card-large status-${agent.status}`}
-                  onClick={() => setSelectedAgent(agent)}
-                >
-                  <div className="agent-card-large-header">
-                    <span className="agent-icon-large">{agent.icon}</span>
-                    <span className={`status-badge ${agent.status}`}>{agent.status}</span>
-                  </div>
-                  <h3>{agent.name}</h3>
-                  <p className="agent-desc">{agent.description}</p>
-                  <div className="agent-card-stats">
-                    <div className="stat">
-                      <span className="stat-value">{agent.tasksCompleted}</span>
-                      <span className="stat-label">Tasks Done</span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-value">{agent.avgResponseTime}</span>
-                      <span className="stat-label">Avg Time</span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-value">{agent.successRate}</span>
-                      <span className="stat-label">Success</span>
-                    </div>
-                  </div>
-                  <div className="agent-capabilities">
-                    {agent.capabilities.map((cap, i) => (
-                      <span key={i} className="capability-tag">{cap}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AgentPanel onSelectAgent={setSelectedAgent} />
           )}
           {activeView === 'workflows' && (
             <div className="workflows-view">

@@ -89,8 +89,12 @@
 .nav-icon {
   font-size: 1.2rem;
   flex-shrink: 0;
-  width: 24px;
+  width: 20px;
+  height: 20px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-label {
@@ -121,6 +125,7 @@
 }
 
 .conversation-item {
+  position: relative;
   padding: 10px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -156,4 +161,28 @@
   padding: 8px;
   border-top: 1px solid var(--border-color);
   margin-top: auto;
+}
+
+.conv-delete-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.conversation-item:hover .conv-delete-btn {
+  opacity: 1;
+}
+
+.conv-delete-btn:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
 }

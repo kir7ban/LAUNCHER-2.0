@@ -48,6 +48,23 @@ export default function InteractiveBackground() {
       }
     };
 
+    // Reduced motion: draw static particles once, no animation
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) {
+      resize();
+      window.addEventListener('resize', resize);
+      particles.current = initParticles(w, h);
+      for (const p of particles.current) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 86, 145, ${p.opacity})`;
+        ctx.fill();
+      }
+      return () => {
+        window.removeEventListener('resize', resize);
+      };
+    }
+
     const onMouseMove = (e) => {
       mouse.current.x = e.clientX;
       mouse.current.y = e.clientY;

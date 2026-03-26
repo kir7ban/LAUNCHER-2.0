@@ -254,3 +254,24 @@ kbd {
   font-family: var(--font-family);
   color: var(--text-muted);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Cursor pointer for interactive elements */
+.nav-item,
+.conversation-item,
+.agent-card-large,
+.workflow-card,
+.dl-activity-item,
+.dl-quick-action,
+.dl-conversation-card,
+.search-result-item,
+.notif-item {
+  cursor: pointer;
+}

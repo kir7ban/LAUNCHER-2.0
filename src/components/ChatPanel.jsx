@@ -1,8 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../context/AgentContext';
+import TypingIndicator from './TypingIndicator';
 import '../styles/ChatPanel.css';
 
-export default function ChatPanel({ fresh = false }) {
+function StreamingText({ text, speed = 10 }) {
+  const [displayed, setDisplayed] = useState('');
+  const prefersReduced = useRef(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  useEffect(() => {
+    if (prefersReduced.current) {
+      setDisplayed(text);
+      return;
+    }
+    let i = 0;
+    setDisplayed('');
+    const timer = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(timer);
+    }, speed);
+    return () => clearInterval(timer);
+  }, [text, speed]);
+
+  return <ReactMarkdown>{displayed}</ReactMarkdown>;
+}
+
+export default function ChatPanel({ fresh = false, onFreshSubmit }) {
   const ctx = useAgentContext();
   const [localMessages, setLocalMessages] = useState([]);
 
@@ -10,39 +34,13 @@ export default function ChatPanel({ fresh = false }) {
   const messages = fresh ? localMessages : ctx.messages;
   const sendMessage = fresh
     ? (content) => {
-        const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const userMsg = { id: localMessages.length + 1, role: 'user', content, timestamp: ts };
-        setLocalMessages((prev) => [...prev, userMsg]);
-        setTimeout(() => {
-          setLocalMessages((prev) => [
-            ...prev,
-            {
-              id: prev.length + 1,
-              role: 'orchestrator',
-              content: `Got it! I'm analyzing your request and routing it to the right agents...\n\nI'll delegate this to the **Triage Process** agent for classification and the appropriate service agent for resolution.`,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              agentId: 'orchestrator',
-              delegations: [
-                { agent: 'Triage Process', task: 'Classify & route request', status: 'in-progress' },
-                { agent: 'Facility & IT Support', task: 'Process service request', status: 'pending' },
-              ],
-            },
-          ]);
-        }, 800);
-        setTimeout(() => {
-          setLocalMessages((prev) => [
-            ...prev,
-            {
-              id: prev.length + 1,
-              role: 'agent',
-              content: `I've classified your request and routed it to the appropriate agent. The task has been assigned and is being processed.\n\nYou'll receive a confirmation shortly with the reference number and expected resolution time.`,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              agentId: 'triage-process',
-              agentName: 'Triage Process',
-              agentIcon: '🔀',
-            },
-          ]);
-        }, 2500);
+        if (onFreshSubmit) {
+          onFreshSubmit(content);
+        } else {
+          const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const userMsg = { id: localMessages.length + 1, role: 'user', content, timestamp: ts };
+          setLocalMessages((prev) => [...prev, userMsg]);
+        }
       }
     : ctx.sendMessage;
 
@@ -57,6 +55,17 @@ export default function ChatPanel({ fresh = false }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Consume pending message from context
+  const pendingMessage = !fresh ? ctx.pendingMessage : null;
+  const setPendingMessage = !fresh ? ctx.setPendingMessage : null;
+
+  useEffect(() => {
+    if (!fresh && pendingMessage) {
+      ctx.sendMessage(pendingMessage);
+      setPendingMessage(null);
+    }
+  }, [pendingMessage]);
 
   // Close tools menu on outside click
   useEffect(() => {
@@ -101,11 +110,9 @@ export default function ChatPanel({ fresh = false }) {
   const handleVoiceInput = () => {
     if (isRecording) {
       setIsRecording(false);
-      // Simulate voice transcription
       setInput((prev) => prev + (prev ? ' ' : '') + 'Voice input transcribed...');
     } else {
       setIsRecording(true);
-      // In production, start Web Speech API / MediaRecorder
     }
   };
 
@@ -147,6 +154,10 @@ export default function ChatPanel({ fresh = false }) {
         )}
         {messages.map((msg) => (
           <div key={msg.id} className={`message message-${msg.role}`}>
+            {msg.role === 'typing' && (
+              <TypingIndicator agentName={msg.agentName} agentIcon={msg.agentIcon} />
+            )}
+
             {msg.role === 'user' && (
               <div className="message-bubble user-bubble">
                 <div className="message-content">{msg.content}</div>
@@ -160,16 +171,22 @@ export default function ChatPanel({ fresh = false }) {
                   <span className="agent-badge orchestrator">🎯 Orchestrator</span>
                   <span className="message-time">{msg.timestamp}</span>
                 </div>
-                <div className="message-content">{renderMarkdown(msg.content)}</div>
+                <div className="message-content"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
                 {msg.delegations && (
                   <div className="delegation-list">
                     <div className="delegation-title">Task Delegations:</div>
                     {msg.delegations.map((d, i) => (
                       <div key={i} className={`delegation-item delegation-${d.status}`}>
                         <span className="delegation-status-icon">
-                          {d.status === 'completed' && '✅'}
-                          {d.status === 'in-progress' && '⏳'}
-                          {d.status === 'pending' && '⏸️'}
+                          {d.status === 'completed' && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          )}
+                          {d.status === 'in-progress' && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                          )}
+                          {d.status === 'pending' && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+                          )}
                         </span>
                         <span className="delegation-agent">{d.agent}</span>
                         <span className="delegation-task">{d.task}</span>
@@ -189,7 +206,7 @@ export default function ChatPanel({ fresh = false }) {
                   </span>
                   <span className="message-time">{msg.timestamp}</span>
                 </div>
-                <div className="message-content">{renderMarkdown(msg.content)}</div>
+                <div className="message-content"><StreamingText text={msg.content} /></div>
               </div>
             )}
           </div>
@@ -345,25 +362,4 @@ export default function ChatPanel({ fresh = false }) {
       </div>
     </div>
   );
-}
-
-function renderMarkdown(text) {
-  // Simple markdown rendering
-  const lines = text.split('\n');
-  return lines.map((line, i) => {
-    // Bold
-    line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    // Bullet points
-    if (line.startsWith('- ')) {
-      return (
-        <div key={i} className="md-list-item" dangerouslySetInnerHTML={{ __html: '• ' + line.slice(2) }} />
-      );
-    }
-    // Numbered list
-    if (/^\d+\.\s/.test(line)) {
-      return <div key={i} className="md-list-item" dangerouslySetInnerHTML={{ __html: line }} />;
-    }
-    if (line === '') return <br key={i} />;
-    return <div key={i} dangerouslySetInnerHTML={{ __html: line }} />;
-  });
 }

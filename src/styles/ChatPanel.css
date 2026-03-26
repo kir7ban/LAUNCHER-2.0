@@ -635,3 +635,31 @@
 .suggestion-icon {
   font-size: 1rem;
 }
+
+/* Delegation animation states */
+.delegation-item {
+  transition: all 0.3s ease-out;
+}
+
+.delegation-pending {
+  opacity: 0.6;
+}
+
+.delegation-in-progress .delegation-status-icon {
+  display: inline-flex;
+  animation: delegationSpin 1s linear infinite;
+}
+
+@keyframes delegationSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.delegation-completed {
+  animation: delegationFadeIn 0.3s ease-out;
+}
+
+@keyframes delegationFadeIn {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}

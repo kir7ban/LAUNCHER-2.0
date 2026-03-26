@@ -14,15 +14,7 @@ function AppContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedAgent, setSelectedAgent] = useState(null);
-  const { agents, sendMessage } = useAgentContext();
-
-  const handleDashboardNav = (view, message) => {
-    setActiveView(view);
-    if (message) {
-      // Small delay so chat mounts before sending
-      setTimeout(() => sendMessage(message), 100);
-    }
-  };
+  const { agents, sendMessage, createConversation, setPendingMessage } = useAgentContext();
 
   return (
     <div className="app">
@@ -36,10 +28,17 @@ function AppContent() {
           onViewChange={setActiveView}
         />
         <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          <DashboardHeader activeView={activeView} />
+          <DashboardHeader
+            activeView={activeView}
+            onViewChange={setActiveView}
+            onSelectAgent={setSelectedAgent}
+          />
           <div className="content-area">
           {activeView === 'dashboard' && (
-            <DashboardLanding onNavigate={handleDashboardNav} />
+            <DashboardLanding
+              onNavigate={(view) => setActiveView(view)}
+              onSelectAgent={setSelectedAgent}
+            />
           )}
           {activeView === 'chat' && (
             <div className="split-view">
@@ -93,7 +92,16 @@ function AppContent() {
         </div>
       </div>
       {selectedAgent && (
-        <AgentDetailModal agent={selectedAgent} onClose={() => setSelectedAgent(null)} />
+        <AgentDetailModal
+          agent={selectedAgent}
+          onClose={() => setSelectedAgent(null)}
+          onNavigateToChat={(agentName) => {
+            setSelectedAgent(null);
+            setActiveView('chat');
+            createConversation('Task for ' + agentName);
+            setPendingMessage('I need help from ' + agentName);
+          }}
+        />
       )}
     </div>
   );

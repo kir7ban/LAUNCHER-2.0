@@ -7,15 +7,6 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches: [main]
 
-permissions:
-  id-token: write
-  contents: read
-  pull-requests: write
-
-env:
-  SWA_NAME: ${{ vars.AZURE_SWA_NAME }}
-  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-
 jobs:
   build_and_deploy:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -36,27 +27,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Get SWA deployment token
-        id: swa-token
-        run: |
-          TOKEN=$(az staticwebapp secrets list \
-            --name "$SWA_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "properties.apiKey" -o tsv)
-          echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
-
       - name: Deploy to SWA
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PURPLE_PEBBLE_00715560F }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           skip_app_build: true
@@ -68,25 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Close Pull Request
     steps:
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Get SWA deployment token
-        id: swa-token
-        run: |
-          TOKEN=$(az staticwebapp secrets list \
-            --name "${{ vars.AZURE_SWA_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.apiKey" -o tsv)
-          echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
-
       - name: Close Pull Request
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PURPLE_PEBBLE_00715560F }}
           action: close

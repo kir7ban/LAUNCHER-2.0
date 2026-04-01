@@ -6,6 +6,33 @@
   position: relative;
 }
 
+/* ── Page transition: landing exits (scale up + fade out) ── */
+.app.app-transition-exit {
+  animation: viewExit 0.3s ease-in forwards;
+}
+
+/* ── Page transition: chat enters (scale from slightly small + fade in) ── */
+.app.app-transition-enter {
+  animation: viewEnter 0.3s ease-out forwards;
+}
+
+@keyframes viewExit {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(1.03); }
+}
+
+@keyframes viewEnter {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app.app-transition-exit,
+  .app.app-transition-enter {
+    animation: none;
+  }
+}
+
 /* App body: sidebar + main content, between header and footer */
 .app-body {
   display: flex;
@@ -24,7 +51,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
-  background: rgba(245, 246, 248, 0.45);
+  background: var(--content-bg);
 }
 
 .main-content.sidebar-collapsed {
@@ -43,6 +70,7 @@
   display: flex;
   height: 100%;
   gap: 0;
+  position: relative;
 }
 
 /* Agents grid view */
@@ -56,10 +84,10 @@
 }
 
 .agent-card-large {
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(220, 222, 229, 0.5);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: 24px;
   cursor: pointer;
@@ -260,23 +288,17 @@
 
 /* ── Responsive Breakpoints ── */
 
-/* Tablet */
+/* Tablet — sidebar collapse controlled by React state, not forced */
 @media (max-width: 1024px) {
-  .sidebar {
-    width: var(--sidebar-collapsed-width);
-  }
-  .sidebar .nav-label,
-  .sidebar .logo-text,
-  .sidebar .conversation-list,
-  .sidebar .sidebar-footer .nav-label {
-    display: none;
-  }
   .main-content {
+    margin-left: var(--sidebar-width);
+  }
+  .main-content.sidebar-collapsed {
     margin-left: var(--sidebar-collapsed-width);
   }
 }
 
-/* Mobile */
+/* Mobile — sidebar slides in/out as overlay */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
@@ -290,7 +312,8 @@
   .sidebar:not(.collapsed) {
     left: 0;
   }
-  .main-content {
+  .main-content,
+  .main-content.sidebar-collapsed {
     margin-left: 0;
   }
   .agents-grid-view {

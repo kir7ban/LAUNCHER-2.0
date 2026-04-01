@@ -43,7 +43,7 @@
 .wf-form-group select:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(0, 86, 145, 0.1);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .wf-step-row {

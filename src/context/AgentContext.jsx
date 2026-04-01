@@ -242,9 +242,13 @@ const initialNotifications = [
 
 export function AgentProvider({ children }) {
   const [agents, setAgents] = useState(initialAgents);
-  const [conversations, setConversations] = useState(initialConversations);
-  const [activeConversation, setActiveConversation] = useState('conv-1');
+  const [conversations, setConversations] = useState([
+    { id: 'conv-new', title: 'New Conversation', timestamp: 'Just now', preview: '' },
+    ...initialConversations,
+  ]);
+  const [activeConversation, setActiveConversation] = useState('conv-new');
   const [messagesMap, setMessagesMap] = useState({
+    'conv-new': [],
     'conv-1': [...initialMessages],
   });
   const [pendingMessage, setPendingMessage] = useState(null);

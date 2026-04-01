@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../context/AgentContext';
 import TypingIndicator from './TypingIndicator';
+import ChatWelcomeBackground from './ChatWelcomeBackground';
 import '../styles/ChatPanel.css';
 
 function StreamingText({ text, speed = 10 }) {
@@ -47,10 +48,8 @@ export default function ChatPanel({ fresh = false, onFreshSubmit }) {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [showToolsMenu, setShowToolsMenu] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const toolsMenuRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -66,17 +65,6 @@ export default function ChatPanel({ fresh = false, onFreshSubmit }) {
       setPendingMessage(null);
     }
   }, [pendingMessage]);
-
-  // Close tools menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target)) {
-        setShowToolsMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleSend = () => {
     if (!input.trim() && attachments.length === 0) return;
@@ -117,7 +105,6 @@ export default function ChatPanel({ fresh = false, onFreshSubmit }) {
   };
 
   const handleToolAction = (tool) => {
-    setShowToolsMenu(false);
     switch (tool) {
       case 'onedrive':
         alert('OneDrive picker would open here — connect via Microsoft Graph API');
@@ -138,18 +125,18 @@ export default function ChatPanel({ fresh = false, onFreshSubmit }) {
     }
   };
 
+  const isEmpty = messages.length === 0;
+
   return (
-    <div className="chat-panel">
+    <div className={`chat-panel${isEmpty ? ' chat-panel--has-bg chat-panel--empty' : ''}`}>
+      {isEmpty && <ChatWelcomeBackground />}
       <div className="messages-area">
-        {messages.length === 0 && (
+        {isEmpty && (
           <div className="chat-welcome">
-            <div className="chat-welcome-icon">
-              <span className="genie-sparkle">✨</span>
-              <span className="genie-lamp">🧞</span>
-              <span className="genie-sparkle">✨</span>
+            <div className="chat-welcome-content">
+              <h2 className="chat-welcome-title">This is <span className="genie-brand">RBIN Launcher 2.0</span></h2>
+              <p className="chat-welcome-sub">AI agents centralized.</p>
             </div>
-            <h2 className="chat-welcome-title">This is <span className="genie-brand">BDO Genie</span></h2>
-            <p className="chat-welcome-sub">Your one stop solution to everything.</p>
           </div>
         )}
         {messages.map((msg) => (
@@ -260,73 +247,6 @@ export default function ChatPanel({ fresh = false, onFreshSubmit }) {
             style={{ display: 'none' }}
           />
 
-          {/* Left toolbar */}
-          <div className="input-toolbar input-toolbar-left">
-            <button
-              className="toolbar-btn"
-              title="Attach file"
-              onClick={() => { fileInputRef.current.removeAttribute('capture'); fileInputRef.current.setAttribute('accept', '*/*'); fileInputRef.current.click(); }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-              </svg>
-            </button>
-
-            <div className="tools-menu-wrapper" ref={toolsMenuRef}>
-              <button
-                className={`toolbar-btn ${showToolsMenu ? 'active' : ''}`}
-                title="Tools & integrations"
-                onClick={() => setShowToolsMenu(!showToolsMenu)}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
-                </svg>
-              </button>
-
-              {showToolsMenu && (
-                <div className="tools-dropdown">
-                  <div className="tools-dropdown-header">Integrations</div>
-                  <button className="tools-dropdown-item" onClick={() => handleToolAction('onedrive')}>
-                    <span className="tools-item-icon">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10.5 18.5l-1.12-1.93A4.46 4.46 0 016 12.5a4.49 4.49 0 014.5-4.5c1.63 0 3.06.87 3.85 2.17l.15.26.3-.04A3.49 3.49 0 0118.5 14a3.49 3.49 0 01-1.08 2.53L10.5 18.5zM10.5 9.5a3 3 0 00-3 3c0 1.1.6 2.1 1.54 2.63l.29.17.87 1.49 5.39-1.54A2 2 0 0016.5 14a2 2 0 00-2-2h-.73l-.35-.87A3 3 0 0010.5 9.5z"/></svg>
-                    </span>
-                    <div className="tools-item-info">
-                      <span className="tools-item-name">OneDrive</span>
-                      <span className="tools-item-desc">Browse & attach from OneDrive</span>
-                    </div>
-                  </button>
-                  <button className="tools-dropdown-item" onClick={() => handleToolAction('sharepoint')}>
-                    <span className="tools-item-icon">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-                    </span>
-                    <div className="tools-item-info">
-                      <span className="tools-item-name">SharePoint</span>
-                      <span className="tools-item-desc">Browse SharePoint documents</span>
-                    </div>
-                  </button>
-                  <button className="tools-dropdown-item" onClick={() => handleToolAction('camera')}>
-                    <span className="tools-item-icon">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                    </span>
-                    <div className="tools-item-info">
-                      <span className="tools-item-name">Camera</span>
-                      <span className="tools-item-desc">Take a photo to attach</span>
-                    </div>
-                  </button>
-                  <button className="tools-dropdown-item" onClick={() => handleToolAction('screenshot')}>
-                    <span className="tools-item-icon">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                    </span>
-                    <div className="tools-item-info">
-                      <span className="tools-item-name">Screenshot</span>
-                      <span className="tools-item-desc">Capture & share your screen</span>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Text area */}
           <textarea
             value={input}
@@ -336,7 +256,7 @@ export default function ChatPanel({ fresh = false, onFreshSubmit }) {
             rows={1}
           />
 
-          {/* Right toolbar */}
+          {/* Right toolbar (voice + send) inside the box */}
           <div className="input-toolbar input-toolbar-right">
             <button
               className={`toolbar-btn voice-btn ${isRecording ? 'recording' : ''}`}
@@ -356,6 +276,41 @@ export default function ChatPanel({ fresh = false, onFreshSubmit }) {
             </button>
           </div>
         </div>
+
+        {/* Bottom toolbar (attach + integrations) below the box */}
+        <div className="input-bottom-toolbar">
+          <button
+            className="toolbar-btn"
+            title="Attach file"
+            onClick={() => { fileInputRef.current.removeAttribute('capture'); fileInputRef.current.setAttribute('accept', '*/*'); fileInputRef.current.click(); }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+            </svg>
+            <span>Attach</span>
+          </button>
+
+          <button className="toolbar-btn" title="OneDrive" onClick={() => handleToolAction('onedrive')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10.5 18.5l-1.12-1.93A4.46 4.46 0 016 12.5a4.49 4.49 0 014.5-4.5c1.63 0 3.06.87 3.85 2.17l.15.26.3-.04A3.49 3.49 0 0118.5 14a3.49 3.49 0 01-1.08 2.53L10.5 18.5zM10.5 9.5a3 3 0 00-3 3c0 1.1.6 2.1 1.54 2.63l.29.17.87 1.49 5.39-1.54A2 2 0 0016.5 14a2 2 0 00-2-2h-.73l-.35-.87A3 3 0 0010.5 9.5z"/></svg>
+            <span>OneDrive</span>
+          </button>
+
+          <button className="toolbar-btn" title="SharePoint" onClick={() => handleToolAction('sharepoint')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            <span>SharePoint</span>
+          </button>
+
+          <button className="toolbar-btn" title="Camera" onClick={() => handleToolAction('camera')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>Camera</span>
+          </button>
+
+          <button className="toolbar-btn" title="Screenshot" onClick={() => handleToolAction('screenshot')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>Screenshot</span>
+          </button>
+        </div>
+
         <div className="input-hint">
           Press <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for new line · Attach files or use tools via the toolbar
         </div>

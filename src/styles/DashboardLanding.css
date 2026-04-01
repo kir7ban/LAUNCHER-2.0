@@ -13,13 +13,13 @@
 }
 
 .dl-welcome-banner {
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--glass-bg-light);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--glass-border-light);
   border-radius: var(--radius-lg);
   padding: 28px 32px;
-  box-shadow: 0 4px 16px rgba(0, 86, 145, 0.06);
+  box-shadow: 0 4px 16px var(--accent-glow);
 }
 
 .dl-welcome-title {
@@ -40,19 +40,18 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--glass-bg-light);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--glass-border-light);
   border-radius: 24px;
   overflow: hidden;
   max-width: 900px;
   width: 100%;
   margin: 0 auto;
   box-shadow:
-    0 8px 32px rgba(0, 86, 145, 0.08),
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    var(--shadow-md),
+    inset 0 1px 0 var(--glass-inset-highlight);
 }
 
 .dl-chat-section .chat-panel {

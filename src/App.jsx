@@ -7,7 +7,7 @@ import AgentPanel from './components/AgentPanel';
 import WorkflowsPanel from './components/WorkflowsPanel';
 import BoschHeader from './components/BoschHeader';
 import BoschFooter from './components/BoschFooter';
-import BdogenieBackground from 'react-bdogenie-bg';
+import BdoLauncherBackground from './components/BdoLauncherBackground';
 import LandingPage from './components/LandingPage';
 import { AgentProvider, useAgentContext } from './context/AgentContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -54,7 +54,7 @@ function AppContent() {
   if (activeView === 'landing') {
     return (
       <div className={`app ${transition === 'exit' ? 'app-transition-exit' : ''}`}>
-        <BdogenieBackground />
+        <BdoLauncherBackground />
         <BoschHeader />
         <LandingPage
           onSendQuery={transitionToChat}
@@ -65,7 +65,7 @@ function AppContent() {
 
   return (
     <div className={`app ${transition === 'enter' ? 'app-transition-enter' : ''}`}>
-      <BdogenieBackground />
+      <BdoLauncherBackground />
       <BoschHeader />
       <div className="app-body">
         <Sidebar

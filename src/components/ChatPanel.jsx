@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAgentContext } from '../context/AgentContext';
+import ClarificationCard from './ClarificationCard';
 import '../styles/ChatPanel.css';
 
 export default function ChatPanel({ fresh = false }) {
   const ctx = useAgentContext();
+  const { pendingClarification, submitClarification } = ctx;
   const [localMessages, setLocalMessages] = useState([]);
 
   // In fresh mode use isolated local state; otherwise use shared context
@@ -194,6 +196,17 @@ export default function ChatPanel({ fresh = false }) {
             )}
           </div>
         ))}
+        {/* Clarification card — inline when agent needs more info */}
+        {pendingClarification && (
+          <div className="message message-agent">
+            <ClarificationCard
+              questions={pendingClarification.questions}
+              onSubmit={submitClarification}
+              agentName="Governance & Security"
+              agentIcon="🛡️"
+            />
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -315,8 +328,13 @@ export default function ChatPanel({ fresh = false }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Send a message to the Orchestrator..."
+            placeholder={
+              pendingClarification
+                ? 'Please answer the questions above...'
+                : 'Send a message to the Orchestrator...'
+            }
             rows={1}
+            disabled={!!pendingClarification}
           />
 
           {/* Right toolbar */}
@@ -334,7 +352,7 @@ export default function ChatPanel({ fresh = false }) {
                 </svg>
               )}
             </button>
-            <button className="send-btn" onClick={handleSend} disabled={!input.trim() && attachments.length === 0}>
+            <button className="send-btn" onClick={handleSend} disabled={(!input.trim() && attachments.length === 0) || !!pendingClarification}>
               <span>➤</span>
             </button>
           </div>

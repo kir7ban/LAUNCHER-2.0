@@ -23,6 +23,7 @@ export const EventType = {
   ANSWER: 'answer',
   ERROR: 'error',
   STATUS: 'status',
+  CLARIFY: 'clarify',
 };
 
 /**
@@ -99,6 +100,22 @@ export class OrchestratorClient {
 
     this.ws.send(JSON.stringify(message));
     return message.query_id;
+  }
+
+  /**
+   * Send clarification answers back to the orchestrator.
+   */
+  sendClarifyResponse(queryId, answers) {
+    if (!this.connected || !this.ws) {
+      console.error('[Orchestrator] Not connected, cannot send clarify_response');
+      return false;
+    }
+    this.ws.send(JSON.stringify({
+      type: 'clarify_response',
+      query_id: queryId,
+      answers,
+    }));
+    return true;
   }
 
   /**

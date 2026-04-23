@@ -193,6 +193,9 @@ export function AgentProvider({ children }) {
   const [agents, setAgents] = useState(initialAgents);
   const [conversations, setConversations] = useState(initialConversations);
   const [activeConversation, setActiveConversation] = useState('conv-1');
+  const [pendingClarification, setPendingClarification] = useState(null);
+  // Shape: { queryId: string, questions: array, agentId: string } | null
+
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -280,6 +283,36 @@ export function AgentProvider({ children }) {
       // Fallback to mock
       simulateMockResponse(content);
     }
+  };
+
+  const submitClarification = (answers) => {
+    if (!pendingClarification) return;
+
+    const client = getClient();
+    client.sendClarifyResponse(pendingClarification.queryId, answers);
+
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        role: 'user',
+        content: answers,
+        timestamp: ts,
+      },
+      {
+        id: Date.now() + 1,
+        role: 'orchestrator',
+        content: 'Got it! Searching with your context...',
+        timestamp: ts,
+        agentId: 'orchestrator',
+        delegations: [],
+        isStreaming: true,
+      },
+    ]);
+
+    setPendingClarification(null);
   };
 
   // Setup WebSocket event handlers
@@ -372,6 +405,27 @@ export function AgentProvider({ children }) {
       });
     });
 
+    client.on(EventType.CLARIFY, (event) => {
+      // Stop the streaming orchestrator indicator
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.role === 'orchestrator' && m.isStreaming
+            ? {
+                ...m,
+                isStreaming: false,
+                content: 'I need a bit more context to give you the best answer:',
+              }
+            : m
+        )
+      );
+      // Store pending clarification
+      setPendingClarification({
+        queryId: event.query_id,
+        questions: event.clarification_questions || [],
+        agentId: event.agent_id || 'governance-security',
+      });
+    });
+
     client.on(EventType.ERROR, (event) => {
       setMessages((prev) => {
         const updated = prev.map(m => 
@@ -436,6 +490,8 @@ export function AgentProvider({ children }) {
         setActiveConversation,
         messages,
         sendMessage,
+        pendingClarification,
+        submitClarification,
       }}
     >
       {children}

@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { getClient, api, EventType } from '../services/orchestratorClient';
 
 const AgentContext = createContext();
+
+// Feature flag for using real backend vs mock
+const USE_REAL_BACKEND = import.meta.env.VITE_USE_REAL_BACKEND === 'true';
+
 
 const initialAgents = [
   {
@@ -236,6 +241,160 @@ export function AgentProvider({ children }) {
     };
     setMessages((prev) => [...prev, userMsg]);
 
+    if (USE_REAL_BACKEND) {
+      // Real backend: use WebSocket streaming
+      sendToBackend(content, userMsg.id);
+    } else {
+      // Mock mode: simulate responses
+      simulateMockResponse(content);
+    }
+  };
+
+  // Send to real backend via WebSocket
+  const sendToBackend = async (content, userMsgId) => {
+    try {
+      const client = getClient();
+      
+      // Ensure connected
+      if (!client.connected) {
+        await client.connect();
+        setupWebSocketHandlers(client);
+      }
+
+      // Add orchestrator thinking message
+      const thinkingMsg = {
+        id: userMsgId + 1,
+        role: 'orchestrator',
+        content: 'Analyzing your request and routing to the appropriate agents...',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        agentId: 'orchestrator',
+        delegations: [],
+        isStreaming: true,
+      };
+      setMessages((prev) => [...prev, thinkingMsg]);
+
+      // Send query
+      client.sendQuery(content);
+    } catch (error) {
+      console.error('Failed to send to backend:', error);
+      // Fallback to mock
+      simulateMockResponse(content);
+    }
+  };
+
+  // Setup WebSocket event handlers
+  const setupWebSocketHandlers = (client) => {
+    client.on(EventType.DELEGATE, (event) => {
+      setMessages((prev) => {
+        const lastOrch = prev.findLast(m => m.role === 'orchestrator');
+        if (lastOrch && lastOrch.isStreaming) {
+          const delegations = [...(lastOrch.delegations || [])];
+          delegations.push({
+            agent: event.to_agent_name,
+            task: event.reason || 'Processing request',
+            status: 'in-progress',
+          });
+          return prev.map(m => m.id === lastOrch.id 
+            ? { ...m, delegations, content: `Routing to **${event.to_agent_name}**...` }
+            : m
+          );
+        }
+        return prev;
+      });
+    });
+
+    client.on(EventType.THINK, (event) => {
+      setMessages((prev) => {
+        const lastOrch = prev.findLast(m => m.role === 'orchestrator' && m.isStreaming);
+        if (lastOrch) {
+          return prev.map(m => m.id === lastOrch.id 
+            ? { ...m, content: event.reasoning || 'Thinking...' }
+            : m
+          );
+        }
+        return prev;
+      });
+    });
+
+    client.on(EventType.ACT, (event) => {
+      setMessages((prev) => {
+        const lastOrch = prev.findLast(m => m.role === 'orchestrator');
+        if (lastOrch && lastOrch.isStreaming) {
+          const delegations = [...(lastOrch.delegations || [])];
+          // Update to show tool being called
+          const existing = delegations.find(d => d.agent.toLowerCase().includes(event.agent_id));
+          if (!existing) {
+            delegations.push({
+              agent: event.agent_id,
+              task: `Calling ${event.tool_name}`,
+              status: 'in-progress',
+            });
+          }
+          return prev.map(m => m.id === lastOrch.id 
+            ? { ...m, delegations }
+            : m
+          );
+        }
+        return prev;
+      });
+    });
+
+    client.on(EventType.ANSWER, (event) => {
+      // Find the agent info
+      const agent = agents.find(a => a.id === event.agent_id) || {
+        name: 'Assistant',
+        icon: '🤖',
+      };
+
+      setMessages((prev) => {
+        // Mark orchestrator message as done
+        const updated = prev.map(m => 
+          m.role === 'orchestrator' && m.isStreaming 
+            ? { ...m, isStreaming: false }
+            : m
+        );
+
+        // Add the final answer
+        const answerMsg = {
+          id: Date.now(),
+          role: 'agent',
+          content: event.answer,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          agentId: event.agent_id || 'assistant',
+          agentName: agent.name,
+          agentIcon: agent.icon,
+          confidence: event.confidence,
+          grounded: event.grounded,
+          sources: event.sources,
+        };
+
+        return [...updated, answerMsg];
+      });
+    });
+
+    client.on(EventType.ERROR, (event) => {
+      setMessages((prev) => {
+        const updated = prev.map(m => 
+          m.role === 'orchestrator' && m.isStreaming 
+            ? { ...m, isStreaming: false }
+            : m
+        );
+
+        const errorMsg = {
+          id: Date.now(),
+          role: 'system',
+          content: `**Error:** ${event.error}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isError: true,
+        };
+
+        return [...updated, errorMsg];
+      });
+    });
+  };
+
+  // Mock response simulation (for testing without backend)
+  const simulateMockResponse = (content) => {
     // Simulate orchestrator response
     setTimeout(() => {
       const orchMsg = {

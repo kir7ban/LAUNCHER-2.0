@@ -1,0 +1,153 @@
+{
+  "agents": [
+    {
+      "id": "governance-security",
+      "name": "Governance & Security",
+      "icon": "🛡️",
+      "description": "Cybersecurity RAG agent for security policies, controls, procedures, vulnerabilities, and compliance. Powered by CyberAgent with hybrid retrieval, confidence scoring, and citation-backed answers.",
+      "capabilities": ["Policy Enforcement", "Access Management", "Compliance Audits", "Security Alerts", "Document Search"],
+      "transport": "streamable_http",
+      "url": "https://ca-rbin-bdo-cyberagent.internal/mcp",
+      "tools": [],
+      "domains": ["cybersecurity", "compliance", "governance", "security", "policy", "iso", "eisa", "cd-09000"],
+      "priority": 1
+    },
+    {
+      "id": "internet-reimbursement",
+      "name": "Internet Reimbursement",
+      "icon": "globe",
+      "description": "Handles internet expense reimbursement claims, validates receipts, and processes monthly allowance payouts.",
+      "capabilities": ["Claim Submission", "Receipt Validation", "Reimbursement Tracking", "Policy Compliance"],
+      "transport": "mock",
+      "domains": ["reimbursement", "internet", "expenses"],
+      "priority": 2
+    },
+    {
+      "id": "ezyclaim",
+      "name": "EzyClaim",
+      "icon": "clipboard",
+      "description": "Streamlines employee expense claims including travel, meals, and miscellaneous reimbursements.",
+      "capabilities": ["Expense Filing", "Auto-Categorization", "Approval Routing", "Status Tracking"],
+      "transport": "mock",
+      "domains": ["expenses", "claims", "travel"],
+      "priority": 2
+    },
+    {
+      "id": "ezycabs",
+      "name": "EzyCabs",
+      "icon": "car",
+      "description": "Manages cab booking, ride scheduling, route optimization, and corporate transport services.",
+      "capabilities": ["Cab Booking", "Ride Scheduling", "Route Optimization", "Fare Estimation"],
+      "transport": "mock",
+      "domains": ["transport", "cab", "booking"],
+      "priority": 2
+    },
+    {
+      "id": "canteen-services",
+      "name": "Canteen Services",
+      "icon": "utensils",
+      "description": "Provides daily menu information, meal pre-ordering, dietary preferences management, and cafeteria feedback.",
+      "capabilities": ["Menu Display", "Meal Pre-Order", "Dietary Filters", "Feedback Collection"],
+      "transport": "mock",
+      "domains": ["canteen", "food", "menu", "cafeteria"],
+      "priority": 3
+    },
+    {
+      "id": "employee-onboarding",
+      "name": "Employee Guided Onboarding",
+      "icon": "graduation-cap",
+      "description": "Guides new joiners through the onboarding process, documentation, training schedules, and team introductions.",
+      "capabilities": ["Onboarding Checklist", "Document Collection", "Training Scheduling", "Buddy Assignment"],
+      "transport": "mock",
+      "domains": ["onboarding", "hr", "training"],
+      "priority": 2
+    },
+    {
+      "id": "triage-process",
+      "name": "Triage Process",
+      "icon": "shuffle",
+      "description": "Classifies, prioritizes, and routes incoming requests or tickets to the appropriate teams or agents.",
+      "capabilities": ["Request Classification", "Priority Assignment", "Smart Routing", "SLA Monitoring"],
+      "transport": "internal",
+      "domains": ["triage", "routing", "classification"],
+      "priority": 0
+    },
+    {
+      "id": "visitor-management",
+      "name": "Visitor Management",
+      "icon": "building",
+      "description": "Handles visitor pre-registration, gate pass generation, host notifications, and check-in/check-out tracking.",
+      "capabilities": ["Pre-Registration", "Gate Pass Generation", "Host Notification", "Visit Tracking"],
+      "transport": "mock",
+      "domains": ["visitor", "security", "access"],
+      "priority": 3
+    },
+    {
+      "id": "retiral-benefits",
+      "name": "Retiral Benefits",
+      "icon": "bank",
+      "description": "Provides information on provident fund, gratuity, pension plans, and retirement benefit calculations.",
+      "capabilities": ["PF Balance Inquiry", "Gratuity Calculator", "Pension Planning", "Benefit Statements"],
+      "transport": "mock",
+      "domains": ["hr", "benefits", "retirement", "pf"],
+      "priority": 3
+    },
+    {
+      "id": "facility-it-support",
+      "name": "Facility & IT Support",
+      "icon": "wrench",
+      "description": "Manages IT helpdesk tickets, facility maintenance requests, asset provisioning, and infrastructure issues.",
+      "capabilities": ["Ticket Creation", "Asset Management", "Maintenance Requests", "Troubleshooting"],
+      "transport": "mock",
+      "domains": ["it", "support", "facilities", "helpdesk"],
+      "priority": 2
+    }
+  ],
+  "routing_rules": [
+    {
+      "keywords": ["security", "policy", "compliance", "control", "audit", "vulnerability", "threat", "EISA", "ISO", "cybersecurity", "CD-09000", "CD-02900"],
+      "agent_id": "governance-security",
+      "confidence_boost": 0.3
+    },
+    {
+      "keywords": ["internet", "broadband", "wifi", "reimbursement"],
+      "agent_id": "internet-reimbursement",
+      "confidence_boost": 0.2
+    },
+    {
+      "keywords": ["expense", "claim", "travel", "receipt"],
+      "agent_id": "ezyclaim",
+      "confidence_boost": 0.2
+    },
+    {
+      "keywords": ["cab", "taxi", "ride", "pickup", "transport"],
+      "agent_id": "ezycabs",
+      "confidence_boost": 0.2
+    },
+    {
+      "keywords": ["menu", "lunch", "canteen", "cafeteria", "food"],
+      "agent_id": "canteen-services",
+      "confidence_boost": 0.2
+    },
+    {
+      "keywords": ["onboarding", "new joiner", "training", "orientation"],
+      "agent_id": "employee-onboarding",
+      "confidence_boost": 0.2
+    },
+    {
+      "keywords": ["visitor", "guest", "pass", "registration"],
+      "agent_id": "visitor-management",
+      "confidence_boost": 0.2
+    },
+    {
+      "keywords": ["pf", "provident", "gratuity", "pension", "retirement"],
+      "agent_id": "retiral-benefits",
+      "confidence_boost": 0.2
+    },
+    {
+      "keywords": ["it", "laptop", "vpn", "printer", "maintenance", "facility"],
+      "agent_id": "facility-it-support",
+      "confidence_boost": 0.2
+    }
+  ]
+}

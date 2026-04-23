@@ -27,7 +27,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from config import FRONTEND_URLS, API_HOST, API_PORT
+from config import FRONTEND_URLS, API_HOST, API_PORT, KNOWLEDGE_REFRESH_INTERVAL_MINUTES
 from agent_registry import get_registry, AgentRegistry
 from orchestrator import get_orchestrator, run_query
 from events import BaseEvent
@@ -69,6 +69,30 @@ class _AgentsJsonHandler(FileSystemEventHandler):
         )
 
 
+async def _knowledge_refresh_loop(registry: AgentRegistry) -> None:
+    """Background task: periodically refresh routing knowledge from all agents.
+
+    Sleeps for KNOWLEDGE_REFRESH_INTERVAL_MINUTES between each refresh cycle.
+    Runs until cancelled (on application shutdown).
+    """
+    interval_seconds = KNOWLEDGE_REFRESH_INTERVAL_MINUTES * 60
+    if interval_seconds <= 0:
+        logger.info("Knowledge refresh disabled (KNOWLEDGE_REFRESH_INTERVAL_MINUTES=0)")
+        return
+
+    while True:
+        try:
+            await asyncio.sleep(interval_seconds)
+            logger.info("Running scheduled routing knowledge refresh...")
+            await registry.refresh_all_routing_knowledge()
+        except asyncio.CancelledError:
+            logger.info("Knowledge refresh loop cancelled")
+            break
+        except Exception as exc:
+            # Never crash the background task — log and keep going
+            logger.warning("Knowledge refresh loop error (will retry next cycle): %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize and cleanup resources."""
@@ -79,6 +103,20 @@ async def lifespan(app: FastAPI):
 
     await get_orchestrator()
     logger.info("Orchestrator initialized")
+
+    # Fetch initial routing knowledge from all connected agents
+    logger.info("Fetching initial routing knowledge from connected agents...")
+    await registry.refresh_all_routing_knowledge()
+
+    # Start background refresh task
+    refresh_task = asyncio.create_task(
+        _knowledge_refresh_loop(registry),
+        name="knowledge-refresh",
+    )
+    logger.info(
+        "Knowledge refresh task started (interval=%d min)",
+        KNOWLEDGE_REFRESH_INTERVAL_MINUTES,
+    )
 
     # Start watchdog to hot-reload agents.json on change
     loop = asyncio.get_running_loop()
@@ -93,6 +131,11 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down...")
+    refresh_task.cancel()
+    try:
+        await refresh_task
+    except (asyncio.CancelledError, Exception):
+        pass
     observer.stop()
     observer.join()
     await registry.close()

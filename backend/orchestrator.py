@@ -59,26 +59,95 @@ logger = logging.getLogger(__name__)
 # Orchestrator prompts
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are an intelligent orchestrator that coordinates specialist agents to answer user queries.
+_ZONE1 = """\
+You are an intelligent orchestrator that coordinates specialist agents to answer employee queries.
 
-Available specialist agents:
-{agent_descriptions}
+HARD RULES (always follow):
+1. NEVER answer from your own knowledge or training data — you are a router, not a knowledge source.
+2. ALWAYS call the appropriate agent's tool to retrieve information before responding.
+3. If no agent covers the query, say clearly what you cannot help with.
+4. Synthesize a concise, direct answer from tool results only; cite sources when available.
+"""
 
-Your job is to:
-1. Analyze the user's question
-2. Decide which agent(s) can best help
-3. Call the appropriate tools to get information
-4. Synthesize a helpful response based on tool results
+_ZONE3_HEADER = """\
+OTHER AGENTS (call only when the query clearly matches their domain):
+"""
 
-Guidelines:
-- Use tools to gather information before answering
-- If a query matches multiple domains, consult multiple agents
-- Always cite your sources when providing information
-- If you cannot answer with the available tools, say so clearly
-- Be concise and direct in your responses
 
-When you have enough information to answer, provide your final response.
-Do NOT make up information - only use what the tools return."""
+def build_system_prompt(registry: "AgentRegistry") -> str:  # noqa: F821
+    """Build the three-zone orchestrator system prompt from live agent knowledge.
+
+    Zone 1 — Static role definition and hard routing rules.
+    Zone 2 — One rich block per connected real (SSE/HTTP/streamable_http) agent,
+              populated from ``AgentConnection.routing_knowledge`` (live knowledge
+              base metadata merged with static agents.json knowledge block).
+    Zone 3 — Brief one-line entries for mock/internal agents.
+
+    The prompt is rebuilt on every query so it always reflects the latest
+    routing knowledge (which is refreshed in the background every N minutes).
+
+    Args:
+        registry: The populated AgentRegistry instance.
+
+    Returns:
+        Complete system prompt string ready for the LLM.
+    """
+    from agent_registry import Transport
+
+    _REAL_TRANSPORTS = (Transport.SSE, Transport.HTTP, Transport.STREAMABLE_HTTP)
+
+    parts: list[str] = [_ZONE1]
+
+    # ── Zone 2: rich blocks for real agents ─────────────────────────────────
+    real_agent_blocks: list[str] = []
+    for conn in registry._agents.values():
+        if conn.config.transport not in _REAL_TRANSPORTS:
+            continue
+        if conn.status.value != "connected":
+            continue
+
+        block_lines: list[str] = []
+        block_lines.append(
+            f"=== {conn.config.name} (id: {conn.config.id}) ==="
+        )
+
+        if conn.routing_knowledge:
+            block_lines.append(conn.routing_knowledge)
+        else:
+            # Fallback to bare description if knowledge hasn't been fetched yet
+            block_lines.append(conn.config.description)
+            if conn.tools:
+                block_lines.append(
+                    f"AVAILABLE TOOLS: {', '.join(t.name for t in conn.tools)}"
+                )
+
+        real_agent_blocks.append("\n".join(block_lines))
+
+    if real_agent_blocks:
+        parts.append("SPECIALIST AGENTS — USE THESE FOR DOMAIN QUESTIONS:\n")
+        parts.extend(real_agent_blocks)
+
+    # ── Zone 3: one-liners for mock/internal agents ──────────────────────────
+    mock_lines: list[str] = []
+    for conn in registry._agents.values():
+        if conn.config.transport in _REAL_TRANSPORTS:
+            continue
+        if conn.config.transport.value == "internal":
+            continue  # triage-process is internal, not user-facing
+        if conn.status.value != "connected":
+            continue
+
+        knowledge = conn.config.knowledge
+        hint = knowledge.get("routing_hint", "")
+        handles = knowledge.get("handles", [])
+        description = hint or (handles[0] if handles else conn.config.description)
+        mock_lines.append(f"- {conn.config.name}: {description}")
+
+    if mock_lines:
+        parts.append(_ZONE3_HEADER + "\n".join(mock_lines))
+
+    return "\n\n".join(parts)
+
 
 SYNTHESIS_PROMPT = """Based on the tool results below, synthesize a comprehensive answer to the user's question.
 
@@ -250,14 +319,8 @@ class Orchestrator:
                         reason=f"Query matches {primary_agent} domain",
                     )
             
-            # Build system prompt with agent descriptions
-            agent_list = self.registry.list_agents()
-            agent_desc = "\n".join([
-                f"- {a['name']}: {a['description']} (tools: {', '.join(a['tools'])})"
-                for a in agent_list
-                if a['status'] == 'connected'
-            ])
-            system_prompt = SYSTEM_PROMPT.format(agent_descriptions=agent_desc)
+            # Build three-zone system prompt from live routing knowledge
+            system_prompt = build_system_prompt(self.registry)
             
             # Initialize messages
             state.messages = [

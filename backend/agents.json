@@ -3,14 +3,57 @@
     {
       "id": "governance-security",
       "name": "Governance & Security",
-      "icon": "🛡️",
-      "description": "Cybersecurity RAG agent for security policies, controls, procedures, vulnerabilities, and compliance. Powered by CyberAgent with hybrid retrieval, confidence scoring, and citation-backed answers.",
+      "icon": "shield",
+      "description": "Cybersecurity RAG agent for Bosch security policies, EISA controls, CD-09000/CD-02900 directives, ISO 27002 mappings, and related FAQs. Powered by CyberAgent with hybrid retrieval, confidence scoring, and citation-backed answers.",
       "capabilities": ["Policy Enforcement", "Access Management", "Compliance Audits", "Security Alerts", "Document Search"],
       "transport": "streamable_http",
-      "url": "https://ca-rbin-bdo-cyberagent.internal/mcp",
+      "url": "${CYBERAGENT_URL:-https://ca-rbin-bdo-cyberagent.internal/mcp}",
       "tools": [],
+      "auth": {
+        "type": "bearer",
+        "key_env": "CYBERAGENT_MCP_KEY"
+      },
       "domains": ["cybersecurity", "compliance", "governance", "security", "policy", "iso", "eisa", "cd-09000"],
-      "priority": 1
+      "priority": 1,
+      "knowledge": {
+        "handles": [
+          "Bosch corporate cybersecurity directives: CD-09000 (Cybersecurity Requirements Catalogue), CD-02900 (Data Protection Notice Kit for Websites)",
+          "EISA controls catalogue — Bosch internal IT security controls across: access control (ACC), communication security (COM), configuration management, asset management, incident management, vulnerability management, and more",
+          "ISO 27002:2022 control mapping and cross-references to Bosch-specific controls",
+          "RBGF directives: RBGF-00177 (IT Ownership and Standardized Binding), Directive-105 (Information Security and Data Protection), Directive-177 (Information Technology and Digitalization), Directive-183 (One Security)",
+          "Corporate Good Practice guides: CGP-80010 (Bosch Cybersecurity General Requirements), CGP-09000 (M&A Activities and CD-09000 compliance)",
+          "Crisis and business continuity: RBCP-05252, RBCP-05253 (Corporate Crisis Management Procedures)",
+          "CD-04602 One Industrial IT Security standard, EISA Cybersecurity Requirements Catalogue",
+          "Cybersecurity lifecycle policies, cybersecurity concept mapping, systems mapping documents",
+          "Cybersecurity topics: access control, authentication, encryption, network segmentation, vulnerability management, incident response, patching, backup and recovery, monitoring and logging, data classification, supplier/third-party security, cloud security, IoT/OT/Industrial IT security, identity and authorization management, penetration testing, hardening, security awareness training",
+          "Compliance and audit readiness checks against Bosch cybersecurity standards",
+          "Cross-document comparisons (e.g. how CD-09000 compares with EISA or ISO 27002 on the same topic)",
+          "Lookup of specific control IDs (e.g. EISA-ACC-201), section numbers (e.g. 4.2.1), FAQ entries, or binding type (ND=mandatory, DI=recommended)"
+        ],
+        "does_not_handle": [
+          "IT helpdesk requests: laptop issues, VPN problems, printer setup, software installation → use facility-it-support",
+          "Employee expense claims, travel reimbursements, receipt submissions → use ezyclaim or internet-reimbursement",
+          "HR topics: new employee onboarding, training schedules, team introductions → use employee-onboarding",
+          "Retirement and pension queries: PF balance, gratuity, pension planning → use retiral-benefits",
+          "Cab or taxi booking, ride scheduling → use ezycabs",
+          "Canteen menus, meal pre-orders, food feedback → use canteen-services",
+          "Visitor registration, gate passes, guest management → use visitor-management",
+          "General knowledge questions not grounded in Bosch security documents"
+        ],
+        "example_queries": [
+          "What are the mandatory password complexity requirements under CD-09000?",
+          "How does EISA-ACC-201 relate to ISO 27002 control 8.5?",
+          "What does CD-02900 require for data protection notices on Bosch websites?",
+          "List all binding (ND) requirements for network segmentation in the Bosch cybersecurity catalogue",
+          "What is the incident response procedure defined in the EISA controls?",
+          "Show me the supplier security requirements in CD-09000",
+          "Compare CD-09000 and EISA requirements on encryption",
+          "What does RBGF-00177 say about IT ownership responsibilities?",
+          "Which cybersecurity requirements apply to cloud deployments under Bosch directives?",
+          "What are the key differences between CD-09000 and the EISA requirements catalogue?"
+        ],
+        "routing_hint": "Route to this agent for ANY question about Bosch security documents, EISA/ISO control IDs, compliance requirements, cybersecurity policies, or IT security topics — even if the query also touches other subjects."
+      }
     },
     {
       "id": "internet-reimbursement",
@@ -20,7 +63,13 @@
       "capabilities": ["Claim Submission", "Receipt Validation", "Reimbursement Tracking", "Policy Compliance"],
       "transport": "mock",
       "domains": ["reimbursement", "internet", "expenses"],
-      "priority": 2
+      "priority": 2,
+      "knowledge": {
+        "handles": [
+          "Internet/broadband expense reimbursement: claim submission, receipt validation, monthly allowance processing and payout tracking"
+        ],
+        "routing_hint": "Use only for internet or broadband reimbursement claims."
+      }
     },
     {
       "id": "ezyclaim",
@@ -30,7 +79,13 @@
       "capabilities": ["Expense Filing", "Auto-Categorization", "Approval Routing", "Status Tracking"],
       "transport": "mock",
       "domains": ["expenses", "claims", "travel"],
-      "priority": 2
+      "priority": 2,
+      "knowledge": {
+        "handles": [
+          "Employee expense claims: travel (flights, hotels, trains), meals, accommodation, business miscellaneous, receipt upload and approval routing"
+        ],
+        "routing_hint": "Use for general expense claim filing, travel reimbursements, and receipt submissions."
+      }
     },
     {
       "id": "ezycabs",
@@ -40,7 +95,13 @@
       "capabilities": ["Cab Booking", "Ride Scheduling", "Route Optimization", "Fare Estimation"],
       "transport": "mock",
       "domains": ["transport", "cab", "booking"],
-      "priority": 2
+      "priority": 2,
+      "knowledge": {
+        "handles": [
+          "Corporate cab booking, taxi scheduling, ride requests, route planning, and fare estimation for business travel"
+        ],
+        "routing_hint": "Use for cab or taxi booking, ride scheduling, or transport logistics."
+      }
     },
     {
       "id": "canteen-services",
@@ -50,7 +111,13 @@
       "capabilities": ["Menu Display", "Meal Pre-Order", "Dietary Filters", "Feedback Collection"],
       "transport": "mock",
       "domains": ["canteen", "food", "menu", "cafeteria"],
-      "priority": 3
+      "priority": 3,
+      "knowledge": {
+        "handles": [
+          "Daily cafeteria menus, meal pre-ordering, dietary preference filters, and canteen feedback and ratings"
+        ],
+        "routing_hint": "Use for cafeteria menus, meal orders, and canteen-related queries."
+      }
     },
     {
       "id": "employee-onboarding",
@@ -60,7 +127,13 @@
       "capabilities": ["Onboarding Checklist", "Document Collection", "Training Scheduling", "Buddy Assignment"],
       "transport": "mock",
       "domains": ["onboarding", "hr", "training"],
-      "priority": 2
+      "priority": 2,
+      "knowledge": {
+        "handles": [
+          "New employee onboarding checklists, documentation collection, training schedules, buddy assignment, and team introductions"
+        ],
+        "routing_hint": "Use for onboarding, new employee orientation, and training scheduling."
+      }
     },
     {
       "id": "triage-process",
@@ -70,7 +143,13 @@
       "capabilities": ["Request Classification", "Priority Assignment", "Smart Routing", "SLA Monitoring"],
       "transport": "internal",
       "domains": ["triage", "routing", "classification"],
-      "priority": 0
+      "priority": 0,
+      "knowledge": {
+        "handles": [
+          "Internal query classification, request routing, priority assignment, and SLA monitoring"
+        ],
+        "routing_hint": "Internal routing agent — not directly callable by users for domain questions."
+      }
     },
     {
       "id": "visitor-management",
@@ -80,7 +159,13 @@
       "capabilities": ["Pre-Registration", "Gate Pass Generation", "Host Notification", "Visit Tracking"],
       "transport": "mock",
       "domains": ["visitor", "security", "access"],
-      "priority": 3
+      "priority": 3,
+      "knowledge": {
+        "handles": [
+          "Visitor pre-registration, gate pass generation, host notifications, and check-in/check-out tracking for physical facility access"
+        ],
+        "routing_hint": "Use for visitor registration, gate passes, and guest management."
+      }
     },
     {
       "id": "retiral-benefits",
@@ -90,7 +175,13 @@
       "capabilities": ["PF Balance Inquiry", "Gratuity Calculator", "Pension Planning", "Benefit Statements"],
       "transport": "mock",
       "domains": ["hr", "benefits", "retirement", "pf"],
-      "priority": 3
+      "priority": 3,
+      "knowledge": {
+        "handles": [
+          "Provident fund (PF) balance inquiries, gratuity calculations, pension planning, and retirement benefit statements"
+        ],
+        "routing_hint": "Use for PF balance, gratuity, pension, and retirement benefit questions."
+      }
     },
     {
       "id": "facility-it-support",
@@ -100,52 +191,58 @@
       "capabilities": ["Ticket Creation", "Asset Management", "Maintenance Requests", "Troubleshooting"],
       "transport": "mock",
       "domains": ["it", "support", "facilities", "helpdesk"],
-      "priority": 2
+      "priority": 2,
+      "knowledge": {
+        "handles": [
+          "IT helpdesk: laptop issues, VPN setup, printer/scanner problems, software requests, asset provisioning; facility maintenance: office repairs, room booking, infrastructure issues"
+        ],
+        "routing_hint": "Use for IT support tickets, device issues, VPN/network problems, and facility maintenance requests."
+      }
     }
   ],
   "routing_rules": [
     {
-      "keywords": ["security", "policy", "compliance", "control", "audit", "vulnerability", "threat", "EISA", "ISO", "cybersecurity", "CD-09000", "CD-02900"],
+      "keywords": ["security", "policy", "compliance", "control", "audit", "vulnerability", "threat", "EISA", "ISO", "cybersecurity", "CD-09000", "CD-02900", "RBGF", "directive", "encryption", "access control", "incident", "patching", "firewall", "monitoring"],
       "agent_id": "governance-security",
       "confidence_boost": 0.3
     },
     {
-      "keywords": ["internet", "broadband", "wifi", "reimbursement"],
+      "keywords": ["internet", "broadband", "wifi", "reimbursement", "allowance"],
       "agent_id": "internet-reimbursement",
       "confidence_boost": 0.2
     },
     {
-      "keywords": ["expense", "claim", "travel", "receipt"],
+      "keywords": ["expense", "claim", "travel", "receipt", "reimbursement", "hotel", "flight"],
       "agent_id": "ezyclaim",
       "confidence_boost": 0.2
     },
     {
-      "keywords": ["cab", "taxi", "ride", "pickup", "transport"],
+      "keywords": ["cab", "taxi", "ride", "pickup", "transport", "booking"],
       "agent_id": "ezycabs",
       "confidence_boost": 0.2
     },
     {
-      "keywords": ["menu", "lunch", "canteen", "cafeteria", "food"],
+      "keywords": ["menu", "lunch", "canteen", "cafeteria", "food", "meal", "order"],
       "agent_id": "canteen-services",
       "confidence_boost": 0.2
     },
     {
-      "keywords": ["onboarding", "new joiner", "training", "orientation"],
+      "keywords": ["onboarding", "new joiner", "training", "orientation", "buddy"],
       "agent_id": "employee-onboarding",
       "confidence_boost": 0.2
     },
     {
-      "keywords": ["visitor", "guest", "pass", "registration"],
+      "keywords": ["visitor", "guest", "pass", "registration", "gate"],
       "agent_id": "visitor-management",
       "confidence_boost": 0.2
     },
     {
-      "keywords": ["pf", "provident", "gratuity", "pension", "retirement"],
+      "keywords": ["pf", "provident", "gratuity", "pension", "retirement", "fund"],
       "agent_id": "retiral-benefits",
       "confidence_boost": 0.2
     },
     {
-      "keywords": ["it", "laptop", "vpn", "printer", "maintenance", "facility"],
+      "keywords": ["it support", "laptop", "vpn", "printer", "maintenance", "facility", "helpdesk", "device"],
       "agent_id": "facility-it-support",
       "confidence_boost": 0.2
     }

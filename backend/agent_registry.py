@@ -43,6 +43,22 @@ def _expand_env(value: str) -> str:
 
     return re.sub(r"\$\{(\w+)(?::-([^}]*))?\}", _replace, value)
 
+
+def _get_auth_headers(config) -> dict[str, str]:
+    """Build HTTP headers for MCP auth based on agent config.
+
+    Supports:
+      {"type": "bearer", "key_env": "ENV_VAR_NAME"}  — read key from env
+      {"type": "bearer", "key": "literal-value"}      — use literal key
+    """
+    auth = getattr(config, "auth", None) or {}
+    if auth.get("type") == "bearer":
+        key = auth.get("key") or os.environ.get(auth.get("key_env", ""), "")
+        if key:
+            return {"Authorization": f"Bearer {key}"}
+    return {}
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -100,6 +116,9 @@ class AgentConfig:
     args: list[str] = field(default_factory=list)
     tools: list[str] = field(default_factory=list)
     tool_schemas: dict[str, dict] = field(default_factory=dict)
+    # Static routing knowledge loaded from agents.json (fallback when live call fails)
+    knowledge: dict = field(default_factory=dict)
+    auth: dict = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict) -> AgentConfig:
@@ -121,6 +140,8 @@ class AgentConfig:
             args=data.get("args", []),
             tools=data.get("tools", []),
             tool_schemas=data.get("tool_schemas", {}),
+            knowledge=data.get("knowledge", {}),
+            auth=data.get("auth", {}),
         )
 
 
@@ -149,6 +170,9 @@ class AgentConnection:
     last_health_check: float = 0.0
     error_message: str | None = None
     http_client: httpx.AsyncClient | None = None
+    # Rendered routing knowledge string injected into the orchestrator system prompt.
+    # Populated at startup by fetch_routing_knowledge() and refreshed periodically.
+    routing_knowledge: str = ""
     
 
 class AgentRegistry:
@@ -326,6 +350,7 @@ class AgentRegistry:
 
             conn.http_client = httpx.AsyncClient(
                 base_url=host_base,
+                headers=_get_auth_headers(config),
                 timeout=httpx.Timeout(30.0, connect=5.0),
             )
 
@@ -400,6 +425,7 @@ class AgentRegistry:
 
             conn.http_client = httpx.AsyncClient(
                 base_url=base,
+                headers=_get_auth_headers(config),
                 timeout=httpx.Timeout(60.0, connect=10.0),
             )
 
@@ -749,13 +775,159 @@ class AgentRegistry:
         
         return tools
     
+    # ---------------------------------------------------------------------------
+    # Routing knowledge — live fetch + render
+    # ---------------------------------------------------------------------------
+
+    async def fetch_routing_knowledge(self, agent_id: str) -> str:
+        """Build and return the routing knowledge string for one agent.
+
+        For real (streamable_http / SSE / HTTP) agents: calls the
+        ``cyber_capabilities`` tool to get live knowledge base metadata, then
+        merges it with the static ``knowledge`` block from agents.json.
+
+        For mock / internal agents: renders from the static ``knowledge`` block
+        only (no network call).
+
+        The returned string is stored in ``AgentConnection.routing_knowledge``
+        and injected into the orchestrator system prompt on every query.
+
+        Args:
+            agent_id: Registry ID of the agent to fetch knowledge for.
+
+        Returns:
+            Rendered routing knowledge string (may be empty if not configured).
+        """
+        import datetime
+
+        conn = self._agents.get(agent_id)
+        if not conn:
+            return ""
+
+        config = conn.config
+        static_k = config.knowledge  # dict from agents.json
+
+        _REAL_TRANSPORTS = (Transport.SSE, Transport.HTTP, Transport.STREAMABLE_HTTP)
+
+        # ── Mock / internal agents — static block only ───────────────────────
+        if config.transport not in _REAL_TRANSPORTS:
+            handles = static_k.get("handles", [])
+            hint = static_k.get("routing_hint", "")
+            if not handles and not hint:
+                return ""
+            lines: list[str] = []
+            if handles:
+                lines.append("  Handles: " + "; ".join(handles))
+            if hint:
+                lines.append(f"  Rule: {hint}")
+            return "\n".join(lines)
+
+        # ── Real agents — try live cyber_capabilities call ───────────────────
+        live_kb: dict | None = None
+        if conn.status == AgentStatus.CONNECTED:
+            try:
+                result = await self.invoke_tool(agent_id, "cyber_capabilities", {})
+                if isinstance(result, dict):
+                    live_kb = result.get("knowledge_base")
+                    logger.info(
+                        "fetch_routing_knowledge: live KB fetched for %s — %d chunks, %d sources",
+                        agent_id,
+                        live_kb.get("total_chunks", 0) if live_kb else 0,
+                        len(live_kb.get("indexed_sources", [])) if live_kb else 0,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "fetch_routing_knowledge: cyber_capabilities failed for %s — "
+                    "using static fallback. Error: %s",
+                    agent_id, exc,
+                )
+
+        # ── Render ───────────────────────────────────────────────────────────
+        parts: list[str] = []
+
+        routing_hint = static_k.get("routing_hint", "")
+        if routing_hint:
+            parts.append(f"ROUTING RULE: {routing_hint}")
+            parts.append("")
+
+        # HANDLES section — live indexed_sources override static handles list
+        handles = static_k.get("handles", [])
+        if live_kb and live_kb.get("status") == "ready":
+            ts = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+            sources = live_kb.get("indexed_sources", [])
+            content_types = live_kb.get("content_types", [])
+            total_chunks = live_kb.get("total_chunks", 0)
+
+            parts.append(f"LIVE KNOWLEDGE BASE (refreshed {ts}):")
+            if sources:
+                parts.append(f"  Indexed documents: {', '.join(sources)}")
+            if content_types:
+                parts.append(f"  Content types: {', '.join(content_types)}")
+            if total_chunks:
+                parts.append(f"  Total indexed chunks: {total_chunks}")
+            parts.append("")
+        elif handles:
+            parts.append("HANDLES:")
+            for h in handles:
+                parts.append(f"  - {h}")
+            parts.append("")
+
+        # DOES NOT HANDLE section
+        does_not_handle = static_k.get("does_not_handle", [])
+        if does_not_handle:
+            parts.append("DO NOT CALL THIS AGENT FOR:")
+            for d in does_not_handle:
+                parts.append(f"  - {d}")
+            parts.append("")
+
+        # EXAMPLE QUERIES section
+        examples = static_k.get("example_queries", [])
+        if examples:
+            parts.append("EXAMPLE QUERIES HANDLED:")
+            for ex in examples:
+                parts.append(f'  - "{ex}"')
+            parts.append("")
+
+        # Available tools
+        tool_names = [t.name for t in conn.tools]
+        if tool_names:
+            parts.append(f"AVAILABLE TOOLS: {', '.join(tool_names)}")
+
+        return "\n".join(parts).strip()
+
+    async def refresh_all_routing_knowledge(self) -> None:
+        """Refresh routing knowledge for all connected agents.
+
+        Iterates all agents and calls ``fetch_routing_knowledge`` for each.
+        Updates ``AgentConnection.routing_knowledge`` in-place.
+
+        Failures for individual agents are logged and silently skipped so a
+        single unreachable agent does not abort the whole refresh cycle.
+        """
+        logger.info("Refreshing routing knowledge for all agents...")
+        updated = 0
+        for agent_id, conn in self._agents.items():
+            try:
+                knowledge_str = await self.fetch_routing_knowledge(agent_id)
+                conn.routing_knowledge = knowledge_str
+                if knowledge_str:
+                    updated += 1
+            except Exception as exc:
+                logger.warning(
+                    "refresh_all_routing_knowledge: failed for %s: %s", agent_id, exc
+                )
+        logger.info(
+            "Routing knowledge refresh complete — %d/%d agents updated",
+            updated, len(self._agents),
+        )
+
     async def close(self) -> None:
         """Close all agent connections."""
         for conn in self._agents.values():
             if conn.http_client:
                 await conn.http_client.aclose()
             conn.status = AgentStatus.DISCONNECTED
-        
+
         logger.info("Closed all agent connections")
 
 

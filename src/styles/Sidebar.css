@@ -4,10 +4,10 @@
   top: 0;
   bottom: 0;
   width: var(--sidebar-width);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--glass-bg-heavy);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-right: 1px solid rgba(220, 222, 229, 0.6);
+  border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   transition: width var(--transition-normal);
@@ -50,8 +50,57 @@
   white-space: nowrap;
 }
 
+/* ── Sidebar search ── */
+.sidebar-search {
+  padding: 14px 10px 0;
+  position: relative;
+}
+
+.sidebar-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 7px 12px;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-search-box:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.sidebar-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.sidebar-search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  width: 100%;
+  min-width: 0;
+}
+
+.sidebar-search-box input::placeholder {
+  color: var(--text-muted);
+}
+
+.sidebar-search .search-dropdown {
+  left: 0;
+  right: 0;
+  width: auto;
+  min-width: unset;
+}
+
 .sidebar-nav {
-  padding: 12px 8px;
+  padding: 12px 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -89,13 +138,51 @@
 .nav-icon {
   font-size: 1.2rem;
   flex-shrink: 0;
-  width: 24px;
+  width: 20px;
+  height: 20px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-label {
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* New Chat button */
+.sidebar-new-chat {
+  padding: 4px 8px 0;
+}
+
+.new-chat-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--accent-primary);
+  background: transparent;
+  color: var(--accent-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.new-chat-btn:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-style: solid;
+}
+
+.sidebar.collapsed .new-chat-btn {
+  padding: 10px;
 }
 
 /* Conversation list */
@@ -121,6 +208,7 @@
 }
 
 .conversation-item {
+  position: relative;
   padding: 10px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -156,4 +244,132 @@
   padding: 8px;
   border-top: 1px solid var(--border-color);
   margin-top: auto;
+}
+
+.conv-delete-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.conversation-item:hover .conv-delete-btn {
+  opacity: 1;
+}
+
+.conv-delete-btn:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* ── Sidebar toggle row ── */
+.sidebar-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 0;
+  min-height: 40px;
+}
+
+.sidebar.collapsed .sidebar-toggle-row {
+  justify-content: center;
+  padding: 10px 4px 0;
+}
+
+.sidebar-toggle-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar-toggle-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+
+/* ── Hover-expand when collapsed ── */
+.sidebar.collapsed.hover-expanded {
+  width: var(--sidebar-width);
+  position: absolute;
+  z-index: 110;
+  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
+}
+
+/* ── Mobile hamburger button ── */
+.sidebar-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: calc(var(--bosch-header-height, 48px) + 10px);
+  left: 10px;
+  z-index: 49;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--glass-bg-heavy);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Mobile overlay ── */
+.sidebar-overlay {
+  display: none;
+}
+
+/* ── Responsive: Mobile ── */
+@media (max-width: 768px) {
+  .sidebar-mobile-toggle.visible {
+    display: flex;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 49;
+  }
+
+  .sidebar-toggle-btn {
+    /* Still visible on mobile inside sidebar */
+  }
+
+  /* Disable hover-expand on mobile (touch devices) */
+  .sidebar.collapsed.hover-expanded {
+    width: var(--sidebar-collapsed-width);
+    box-shadow: none;
+  }
 }

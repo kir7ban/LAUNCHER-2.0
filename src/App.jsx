@@ -1,32 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatPanel from './components/ChatPanel';
-import DashboardLanding from './components/DashboardLanding';
 import DashboardHeader from './components/DashboardHeader';
 import AgentDetailModal from './components/AgentDetailModal';
+import AgentPanel from './components/AgentPanel';
+import WorkflowsPanel from './components/WorkflowsPanel';
 import BoschHeader from './components/BoschHeader';
 import BoschFooter from './components/BoschFooter';
-import InteractiveBackground from './components/InteractiveBackground';
+import BdoLauncherBackground from './components/BdoLauncherBackground';
+import LandingPage from './components/LandingPage';
 import { AgentProvider, useAgentContext } from './context/AgentContext';
+import { ThemeProvider } from './context/ThemeContext';
 import './styles/App.css';
 
 function AppContent() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeView, setActiveView] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth <= 768);
+  const [activeView, setActiveView] = useState('landing');
   const [selectedAgent, setSelectedAgent] = useState(null);
-  const { agents, sendMessage } = useAgentContext();
+  const [transition, setTransition] = useState('');       // '' | 'exit' | 'enter'
+  const [pendingQuery, setPendingQuery] = useState(null);  // query waiting for transition
+  const { agents, sendMessage, createConversation, setPendingMessage } = useAgentContext();
 
-  const handleDashboardNav = (view, message) => {
-    setActiveView(view);
-    if (message) {
-      // Small delay so chat mounts before sending
-      setTimeout(() => sendMessage(message), 100);
-    }
+  const transitionToChat = (query) => {
+    setPendingQuery(query);
+    setTransition('exit');
   };
 
+  // When exit animation ends, switch view and start enter animation
+  useEffect(() => {
+    if (transition !== 'exit') return;
+    const timer = setTimeout(() => {
+      // Create conversation but don't send yet — pendingQuery stays until chat mounts
+      if (pendingQuery) {
+        createConversation(pendingQuery.length > 30 ? pendingQuery.slice(0, 30) + '…' : pendingQuery);
+      }
+      setActiveView('chat');
+      setTransition('enter');
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [transition]);
+
+  // After chat view enters, send the pending query
+  useEffect(() => {
+    if (transition !== 'enter') return;
+    if (pendingQuery) {
+      setPendingMessage(pendingQuery);
+      setPendingQuery(null);
+    }
+    const timer = setTimeout(() => setTransition(''), 300);
+    return () => clearTimeout(timer);
+  }, [transition]);
+
+  if (activeView === 'landing') {
+    return (
+      <div className={`app ${transition === 'exit' ? 'app-transition-exit' : ''}`}>
+        <BdoLauncherBackground />
+        <BoschHeader />
+        <LandingPage
+          onSendQuery={transitionToChat}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="app">
-      <InteractiveBackground />
+    <div className={`app ${transition === 'enter' ? 'app-transition-enter' : ''}`}>
+      <BdoLauncherBackground />
       <BoschHeader />
       <div className="app-body">
         <Sidebar
@@ -34,54 +73,20 @@ function AppContent() {
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           activeView={activeView}
           onViewChange={setActiveView}
+          onSelectAgent={setSelectedAgent}
         />
         <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          <DashboardHeader activeView={activeView} />
+          <DashboardHeader
+            activeView={activeView}
+          />
           <div className="content-area">
-          {activeView === 'dashboard' && (
-            <DashboardLanding onNavigate={handleDashboardNav} />
-          )}
-          {activeView === 'chat' && (
+          {(activeView === 'dashboard' || activeView === 'chat') && (
             <div className="split-view">
               <ChatPanel />
             </div>
           )}
           {activeView === 'agents' && (
-            <div className="agents-grid-view">
-              {agents.map((agent) => (
-                <div
-                  key={agent.id}
-                  className={`agent-card-large status-${agent.status}`}
-                  onClick={() => setSelectedAgent(agent)}
-                >
-                  <div className="agent-card-large-header">
-                    <span className="agent-icon-large">{agent.icon}</span>
-                    <span className={`status-badge ${agent.status}`}>{agent.status}</span>
-                  </div>
-                  <h3>{agent.name}</h3>
-                  <p className="agent-desc">{agent.description}</p>
-                  <div className="agent-card-stats">
-                    <div className="stat">
-                      <span className="stat-value">{agent.tasksCompleted}</span>
-                      <span className="stat-label">Tasks Done</span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-value">{agent.avgResponseTime}</span>
-                      <span className="stat-label">Avg Time</span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-value">{agent.successRate}</span>
-                      <span className="stat-label">Success</span>
-                    </div>
-                  </div>
-                  <div className="agent-capabilities">
-                    {agent.capabilities.map((cap, i) => (
-                      <span key={i} className="capability-tag">{cap}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AgentPanel onSelectAgent={setSelectedAgent} />
           )}
           {activeView === 'workflows' && (
             <div className="workflows-view">
@@ -93,58 +98,28 @@ function AppContent() {
         </div>
       </div>
       {selectedAgent && (
-        <AgentDetailModal agent={selectedAgent} onClose={() => setSelectedAgent(null)} />
+        <AgentDetailModal
+          agent={selectedAgent}
+          onClose={() => setSelectedAgent(null)}
+          onNavigateToChat={(agentName) => {
+            setSelectedAgent(null);
+            setActiveView('chat');
+            createConversation('Task for ' + agentName);
+            setPendingMessage('I need help from ' + agentName);
+          }}
+        />
       )}
-    </div>
-  );
-}
-
-function WorkflowsPanel() {
-  const workflows = [
-    { id: 1, name: 'Customer Support Pipeline', steps: 4, status: 'active', lastRun: '2 min ago', agents: ['Researcher', 'Writer', 'Reviewer'] },
-    { id: 2, name: 'Data Analysis Flow', steps: 3, status: 'idle', lastRun: '1 hr ago', agents: ['Data Analyst', 'Researcher'] },
-    { id: 3, name: 'Content Generation', steps: 5, status: 'active', lastRun: '5 min ago', agents: ['Writer', 'Reviewer', 'Publisher'] },
-    { id: 4, name: 'Code Review Pipeline', steps: 3, status: 'error', lastRun: '30 min ago', agents: ['Code Agent', 'Reviewer'] },
-  ];
-
-  return (
-    <div className="workflows-container">
-      <div className="workflows-header">
-        <h2>Workflow Orchestrations</h2>
-        <button className="btn-primary">+ New Workflow</button>
-      </div>
-      <div className="workflows-list">
-        {workflows.map((wf) => (
-          <div key={wf.id} className={`workflow-card status-${wf.status}`}>
-            <div className="workflow-card-top">
-              <h3>{wf.name}</h3>
-              <span className={`status-badge ${wf.status}`}>{wf.status}</span>
-            </div>
-            <div className="workflow-meta">
-              <span>🔗 {wf.steps} steps</span>
-              <span>⏱️ {wf.lastRun}</span>
-            </div>
-            <div className="workflow-agents">
-              {wf.agents.map((a, i) => (
-                <span key={i} className="workflow-agent-chip">{a}</span>
-              ))}
-            </div>
-            <div className="workflow-actions">
-              <button className="btn-sm btn-outline">View</button>
-              <button className="btn-sm btn-primary">Run</button>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
 
 function App() {
   return (
-    <AgentProvider>
-      <AppContent />
-    </AgentProvider>
+    <ThemeProvider>
+      <AgentProvider>
+        <AppContent />
+      </AgentProvider>
+    </ThemeProvider>
   );
 }
 

@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { FiBell } from 'react-icons/fi';
 import { useAgentContext } from '../context/AgentContext';
+import NotificationsDropdown from './NotificationsDropdown';
 import '../styles/BoschHeader.css';
 
 const boschLogoSvg = `<svg width="108px" height="24px" viewBox="0 0 108 24" xmlns="http://www.w3.org/2000/svg">
@@ -14,38 +16,40 @@ const boschLogoSvg = `<svg width="108px" height="24px" viewBox="0 0 108 24" xmln
 export default function BoschHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeNav, setActiveNav] = useState(null);
-  const { agents } = useAgentContext();
+  const [showNotif, setShowNotif] = useState(false);
+  const notifRef = useRef(null);
+  const { agents, notifications } = useAgentContext();
+  const unreadCount = notifications.filter(n => !n.read).length;
 
-  const navigation = [
-    { label: 'Dashboard', href: '#', subNavigation: [], isAgentDropdown: false },
-    { label: 'Agents', href: '#', subNavigation: [], isAgentDropdown: true },
-    { label: 'Workflows', href: '#', isAgentDropdown: false, subNavigation: [
-      { label: 'My Workflows' },
-      { label: 'Templates' },
-      { label: 'Execution History' },
-    ]},
-    { label: 'Settings', href: '#', subNavigation: [], isAgentDropdown: false },
-  ];
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const navigation = [];
 
   return (
     <header className={`o-header ${menuOpen ? '-menu-open' : ''}`}>
       {/* Supergraphic bar */}
       <div className="o-header__supergraphic" />
 
-      {/* Top bar: Logo + app title + nav links + menu trigger */}
+      {/* Top bar: Logo + actions */}
       <div className="o-header__top-container">
         <div className="e-container">
           <div className="o-header__top">
-            {/* Logo */}
-            <a
-              href="/"
-              className="o-header__logo"
-              aria-label="Bosch Logo"
-              dangerouslySetInnerHTML={{ __html: boschLogoSvg }}
-            />
-
-            {/* Subbrand / app title */}
-            <span className="o-header__app-title">RBIN BDO Genie</span>
+            {/* Logo + Brand */}
+            <div className="o-header__logo-group">
+              <a
+                href="/"
+                className="o-header__logo"
+                aria-label="Bosch Logo"
+                dangerouslySetInnerHTML={{ __html: boschLogoSvg }}
+              />
+              <span className="o-header__brand-name">RBIN App Launcher 2.0</span>
+            </div>
 
             {/* Navigation links */}
             <nav className="o-header__topnav" role="navigation">
@@ -104,6 +108,24 @@ export default function BoschHeader() {
                 );
               })}
             </nav>
+
+            {/* Notifications + User Profile */}
+            <div className="o-header__actions">
+              <div className="o-header__notif-wrapper" ref={notifRef}>
+                <button
+                  className="o-header__action-btn"
+                  title="Notifications"
+                  onClick={() => setShowNotif(!showNotif)}
+                >
+                  <FiBell size={18} />
+                  {unreadCount > 0 && <span className="o-header__notif-badge">{unreadCount}</span>}
+                </button>
+                {showNotif && <NotificationsDropdown onClose={() => setShowNotif(false)} />}
+              </div>
+              <div className="o-header__user-avatar" title="User Profile">
+                <span>U</span>
+              </div>
+            </div>
 
             {/* Menu trigger (mobile) */}
             <button

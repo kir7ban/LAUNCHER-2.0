@@ -8,6 +8,40 @@
   margin: 0 auto;
 }
 
+.chat-panel--has-bg {
+  position: static;
+}
+
+/* Empty / new-chat centered layout */
+.chat-panel--empty {
+  justify-content: center;
+  align-items: center;
+}
+
+.chat-panel--empty .messages-area {
+  flex: none;
+  overflow: visible;
+  padding: 0 28px 12px;
+}
+
+.chat-panel--empty .chat-input-area {
+  border-top: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  width: 130%;
+  max-width: 1170px;
+  padding: 0 24px 18px;
+}
+
+.chat-panel--empty .input-container {
+  min-height: 80px;
+}
+
+.chat-panel--empty .input-container textarea {
+  min-height: 48px;
+}
+
 .messages-area {
   flex: 1;
   overflow-y: auto;
@@ -15,18 +49,36 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.messages-area > .message {
+  pointer-events: auto;
 }
 
 /* ── Welcome message (BDO Genie branding) ── */
 .chat-welcome {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   flex: 1;
-  padding: 40px 24px 20px;
+  padding: 0;
   text-align: center;
   animation: welcomeFadeIn 0.6s ease-out;
+  pointer-events: none;
+}
+
+.chat-welcome-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px 20px;
+  pointer-events: none;
 }
 
 @keyframes welcomeFadeIn {
@@ -64,7 +116,7 @@
 }
 
 .chat-welcome-title {
-  font-size: 1.75rem;
+  font-size: 2.5rem;
   font-weight: 700;
   color: var(--text-primary);
   margin: 0 0 8px;
@@ -84,9 +136,6 @@
   margin: 0;
   font-weight: 400;
   line-height: 1.5;
-}
-  flex-direction: column;
-  gap: 16px;
 }
 
 /* Messages */
@@ -121,9 +170,9 @@
 
 .orchestrator-bubble {
   background: var(--bg-elevated);
-  border: 1px solid rgba(0, 86, 145, 0.15);
+  border: 1px solid var(--glass-border);
   border-bottom-left-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 86, 145, 0.06);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .agent-bubble {
@@ -150,7 +199,7 @@
 }
 
 .agent-badge.orchestrator {
-  background: rgba(99, 102, 241, 0.15);
+  background: var(--badge-orchestrator-bg);
   color: var(--accent-primary-hover);
 }
 
@@ -263,9 +312,11 @@
    Chat Input Area — Enhanced Toolbar
    ══════════════════════════════════════════ */
 .chat-input-area {
+  position: relative;
+  z-index: 1;
   padding: 16px 24px 18px;
-  border-top: 1px solid rgba(220, 222, 229, 0.4);
-  background: rgba(255, 255, 255, 0.6);
+  border-top: 1px solid var(--glass-border);
+  background: var(--glass-bg-light);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -324,17 +375,17 @@
   display: flex;
   align-items: flex-end;
   gap: 0;
-  background: rgba(245, 246, 248, 0.8);
-  border: 1.5px solid rgba(220, 222, 229, 0.6);
+  background: var(--input-bg);
+  border: 1.5px solid var(--glass-border);
   border-radius: 20px;
   padding: 10px 14px;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-sm);
 }
 
 .input-container:focus-within {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 4px rgba(0, 86, 145, 0.10), 0 2px 12px rgba(0, 86, 145, 0.06);
+  box-shadow: 0 0 0 4px var(--focus-ring), 0 2px 12px var(--accent-glow);
 }
 
 .input-container textarea {
@@ -365,15 +416,32 @@
 }
 
 .input-toolbar-left {
-  padding-right: 6px;
-  border-right: 1px solid var(--border-color);
-  margin-right: 6px;
+  display: none;
 }
 
 .input-toolbar-right {
   padding-left: 6px;
-  border-left: 1px solid var(--border-color);
   margin-left: 6px;
+}
+
+/* ── Bottom toolbar (attach + tools below the box) ── */
+.input-bottom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 0;
+}
+
+.input-bottom-toolbar .toolbar-btn {
+  width: auto;
+  height: auto;
+  padding: 5px 12px;
+  gap: 6px;
+  font-size: var(--font-size-sm, 13px);
+}
+
+.input-bottom-toolbar .toolbar-btn span {
+  white-space: nowrap;
 }
 
 .toolbar-btn {
@@ -423,7 +491,7 @@
   font-size: 1.1rem;
   flex-shrink: 0;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(0, 86, 145, 0.2);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .send-btn:hover:not(:disabled) {
@@ -449,7 +517,7 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
   z-index: 100;
   overflow: hidden;
   animation: toolsSlideUp 0.15s ease-out;
@@ -580,7 +648,7 @@
 .template-prompt-chip:hover {
   border-color: var(--accent-primary);
   background: var(--bg-hover);
-  box-shadow: 0 2px 8px rgba(0, 86, 145, 0.10);
+  box-shadow: 0 2px 8px var(--accent-glow);
   transform: translateY(-1px);
 }
 
@@ -607,8 +675,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(0, 86, 145, 0.15);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 50px;
   padding: 10px 20px;
   cursor: pointer;
@@ -625,7 +693,7 @@
   color: #fff;
   background: var(--accent-gradient);
   transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(0, 86, 145, 0.2);
+  box-shadow: var(--shadow-glow);
 }
 
 .suggestion-chip:hover .suggestion-icon {
@@ -634,4 +702,32 @@
 
 .suggestion-icon {
   font-size: 1rem;
+}
+
+/* Delegation animation states */
+.delegation-item {
+  transition: all 0.3s ease-out;
+}
+
+.delegation-pending {
+  opacity: 0.6;
+}
+
+.delegation-in-progress .delegation-status-icon {
+  display: inline-flex;
+  animation: delegationSpin 1s linear infinite;
+}
+
+@keyframes delegationSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.delegation-completed {
+  animation: delegationFadeIn 0.3s ease-out;
+}
+
+@keyframes delegationFadeIn {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
 }

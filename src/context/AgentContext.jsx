@@ -189,6 +189,61 @@ const initialConversations = [
   { id: 'conv-5', title: 'New Joiner Onboarding', timestamp: 'Mar 23', preview: 'Guide me through the...' },
 ];
 
+const initialMessages = [
+  {
+    id: 'msg-init-1',
+    role: 'user',
+    content: 'Claim my internet reimbursement for March.',
+    timestamp: '10:30 AM',
+  },
+  {
+    id: 'msg-init-2',
+    role: 'orchestrator',
+    content: "I'll process your internet reimbursement claim for March. Let me coordinate with the relevant agents:\n\n1. **Internet Reimbursement** → Validate claim details and policy\n2. **EzyClaim** → Submit and route the claim for approval\n3. **Triage Process** → Assign priority and track SLA\n\nStarting the workflow now...",
+    timestamp: '10:30 AM',
+    agentId: 'orchestrator',
+    delegations: [
+      { agent: 'Internet Reimbursement', task: 'Validate claim & policy check', status: 'completed' },
+      { agent: 'EzyClaim', task: 'Submit claim for approval', status: 'completed' },
+      { agent: 'Triage Process', task: 'Assign priority & track SLA', status: 'completed' },
+    ],
+  },
+  {
+    id: 'msg-init-3',
+    role: 'agent',
+    content: '**Claim Validated:** Your internet reimbursement for March has been verified. Monthly allowance: Rs.1,500. Receipt amount matches the policy limit. Claim is eligible for processing.',
+    timestamp: '10:31 AM',
+    agentId: 'internet-reimbursement',
+    agentName: 'Internet Reimbursement',
+    agentIcon: '🌐',
+  },
+  {
+    id: 'msg-init-4',
+    role: 'agent',
+    content: '**Claim Submitted:**\n\n- **Claim ID:** EC-2025-03-4821\n- **Amount:** Rs.1,500\n- **Category:** Internet / Broadband\n- **Status:** Sent to manager for approval\n\nYou will receive an email notification once approved. Typical processing time: 2-3 business days.',
+    timestamp: '10:31 AM',
+    agentId: 'ezyclaim',
+    agentName: 'EzyClaim',
+    agentIcon: '📋',
+  },
+];
+
+const initialWorkflows = [
+  { id: 1, name: 'Customer Support Pipeline', steps: 4, status: 'active', lastRun: '2 min ago', agents: ['Triage Process', 'EzyClaim', 'Facility & IT Support'] },
+  { id: 2, name: 'Expense Processing Flow', steps: 3, status: 'idle', lastRun: '1 hr ago', agents: ['EzyClaim', 'Internet Reimbursement'] },
+  { id: 3, name: 'Employee Onboarding', steps: 5, status: 'active', lastRun: '5 min ago', agents: ['Employee Guided Onboarding', 'Facility & IT Support', 'Governance & Security'] },
+  { id: 4, name: 'Visitor Check-In', steps: 3, status: 'error', lastRun: '30 min ago', agents: ['Visitor Management', 'Governance & Security'] },
+];
+
+const initialNotifications = [
+  { id: 'n1', text: 'Internet Reimbursement completed claim EC-2025-03-4821', read: false, time: '10:32 AM', agentId: 'internet-reimbursement' },
+  { id: 'n2', text: "Workflow 'Customer Support Pipeline' finished successfully", read: false, time: '10:28 AM', type: 'workflow' },
+  { id: 'n3', text: 'EzyCabs: Driver assigned for your 3 PM pickup', read: false, time: '10:15 AM', agentId: 'ezycabs' },
+  { id: 'n4', text: 'Facility & IT Support resolved ticket IT-2025-4521', read: true, time: '10:05 AM', agentId: 'facility-it-support' },
+  { id: 'n5', text: 'Canteen Services: 45 meal pre-orders confirmed', read: true, time: '10:00 AM', agentId: 'canteen-services' },
+  { id: 'n6', text: 'Employee Onboarding: 3 new joiners starting today', read: false, time: '9:00 AM', agentId: 'employee-onboarding' },
+];
+
 export function AgentProvider({ children }) {
   const [agents, setAgents] = useState(initialAgents);
   const [conversations, setConversations] = useState(initialConversations);
@@ -234,15 +289,51 @@ export function AgentProvider({ children }) {
       agentIcon: '📋',
     },
   ]);
+  const [activeConversation, setActiveConversation] = useState('conv-new');
+  const [messagesMap, setMessagesMap] = useState({
+    'conv-new': [],
+    'conv-1': [...initialMessages],
+  });
+  const [pendingMessage, setPendingMessage] = useState(null);
+  const [workflows, setWorkflows] = useState(initialWorkflows);
+  const [notifications, setNotifications] = useState(initialNotifications);
+  const [conversationStates, setConversationStates] = useState({});
+
+  // Derived active messages
+  const messages = messagesMap[activeConversation] || [];
+
+  // Refs to avoid stale closures in async pipeline
+  const messageQueueRef = useRef(new MessageQueue());
+  const activeConversationRef = useRef(activeConversation);
+  const conversationStatesRef = useRef(conversationStates);
+
+  useEffect(() => { activeConversationRef.current = activeConversation; }, [activeConversation]);
+  useEffect(() => { conversationStatesRef.current = conversationStates; }, [conversationStates]);
+
+  const addMessage = (convId, msg) => {
+    setMessagesMap(prev => ({
+      ...prev,
+      [convId]: [...(prev[convId] || []), msg],
+    }));
+  };
+
+  const createConversation = (title) => {
+    const id = 'conv-' + Date.now();
+    const newConv = {
+      id,
+      title: title || 'New Conversation',
+      timestamp: 'Just now',
+      preview: '',
+    };
+    setConversations(prev => [newConv, ...prev]);
+    setActiveConversation(id);
+    setMessagesMap(prev => ({ ...prev, [id]: [] }));
+    return id;
+  };
 
   const sendMessage = (content) => {
-    const userMsg = {
-      id: messages.length + 1,
-      role: 'user',
-      content,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    const convId = activeConversationRef.current;
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (USE_REAL_BACKEND) {
       // Real backend: use WebSocket streaming
@@ -465,29 +556,89 @@ export function AgentProvider({ children }) {
       setMessages((prev) => [...prev, orchMsg]);
     }, 800);
 
-    // Simulate agent response
-    setTimeout(() => {
-      const agentMsg = {
-        id: messages.length + 3,
-        role: 'agent',
-        content: `I've classified your request and routed it to the appropriate agent. The task has been assigned and is being processed.\n\nYou'll receive a confirmation shortly with the reference number and expected resolution time.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        agentId: 'triage-process',
-        agentName: 'Triage Process',
-        agentIcon: '🔀',
-      };
-      setMessages((prev) => [...prev, agentMsg]);
-    }, 2500);
+    // Update conversation title if first message
+    setConversations(prev => prev.map(c =>
+      c.id === convId && c.title === 'New Conversation'
+        ? { ...c, title: content.length > 40 ? content.substring(0, content.lastIndexOf(' ', 40)) + '...' : content, preview: content.substring(0, 40) }
+        : c
+    ));
+
+    // Process through mock orchestrator
+    const convState = conversationStatesRef.current[convId] || { activeAgent: null, currentState: null };
+    const result = processMessage(content, convState, agents);
+
+    // Update conversation state
+    setConversationStates(prev => ({ ...prev, [convId]: result.updatedState }));
+
+    // Queue the response pipeline
+    messageQueueRef.current.enqueue(() => new Promise((resolve) => {
+      // Show typing indicator
+      addMessage(convId, { id: generateMsgId(), role: 'typing', agentName: 'Orchestrator', agentIcon: '🎯', timestamp: ts });
+
+      setTimeout(() => {
+        // Remove typing, add orchestrator message
+        setMessagesMap(prev => ({
+          ...prev,
+          [convId]: prev[convId].filter(m => m.role !== 'typing').concat({
+            id: generateMsgId(),
+            role: 'orchestrator',
+            content: result.orchestratorMsg.content,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            agentId: 'orchestrator',
+            delegations: result.orchestratorMsg.delegations.map(d => ({ ...d })),
+          }),
+        }));
+
+        // Update delegations to in-progress
+        setTimeout(() => {
+          setMessagesMap(prev => ({
+            ...prev,
+            [convId]: prev[convId].map(m =>
+              m.role === 'orchestrator' && m.delegations
+                ? { ...m, delegations: m.delegations.map((d, i) => i === 0 ? { ...d, status: 'in-progress' } : d) }
+                : m
+            ),
+          }));
+        }, 200);
+
+        // Agent typing indicator
+        setTimeout(() => {
+          addMessage(convId, { id: generateMsgId(), role: 'typing', agentName: result.agentMsg.agentName, agentIcon: result.agentMsg.agentIcon });
+        }, 700);
+
+        // Agent response + complete delegations
+        setTimeout(() => {
+          setMessagesMap(prev => ({
+            ...prev,
+            [convId]: prev[convId]
+              .filter(m => m.role !== 'typing')
+              .map(m =>
+                m.role === 'orchestrator' && m.delegations
+                  ? { ...m, delegations: m.delegations.map(d => ({ ...d, status: 'completed' })) }
+                  : m
+              )
+              .concat({
+                id: generateMsgId(),
+                role: 'agent',
+                content: result.agentMsg.content,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                agentId: result.agentMsg.agentId,
+                agentName: result.agentMsg.agentName,
+                agentIcon: result.agentMsg.agentIcon,
+              }),
+          }));
+          resolve();
+        }, 1400);
+      }, 800);
+    }));
   };
 
   return (
     <AgentContext.Provider
       value={{
-        agents,
-        setAgents,
-        conversations,
-        activeConversation,
-        setActiveConversation,
+        agents, setAgents,
+        conversations, setConversations,
+        activeConversation, setActiveConversation,
         messages,
         sendMessage,
         pendingClarification,

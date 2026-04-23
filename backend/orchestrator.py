@@ -47,6 +47,8 @@ from events import (
     answer_event,
     error_event,
     status_event,
+    clarify_event,
+    ClarifyEvent,
 )
 from agent_registry import AgentRegistry, get_registry
 
@@ -126,7 +128,12 @@ class QueryState:
     grounded: bool = True
     out_of_domain: bool = False
     error: str | None = None
-    
+
+    # Clarification support
+    clarification_event: asyncio.Event = field(default_factory=asyncio.Event)
+    clarification_answers: str = ""
+    needs_clarification: bool = False
+
     @property
     def elapsed_ms(self) -> int:
         """Milliseconds since query started."""
@@ -135,6 +142,27 @@ class QueryState:
     def has_budget(self) -> bool:
         """Check if we have time budget remaining."""
         return self.elapsed_ms < ORCHESTRATOR_TIMEOUT_MS
+
+
+# Active query states keyed by query_id.
+# The WebSocket handler uses this to deliver clarify_response messages.
+_active_queries: dict[str, QueryState] = {}
+
+
+def deliver_clarification(query_id: str, answers: str) -> bool:
+    """Called by the WebSocket handler when a clarify_response message arrives.
+
+    Sets the asyncio.Event in the paused orchestrator run() coroutine,
+    allowing it to resume with the user's answers.
+
+    Returns True if query was found and notified, False if not found.
+    """
+    state = _active_queries.get(query_id)
+    if not state:
+        return False
+    state.clarification_answers = answers
+    state.clarification_event.set()
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +220,8 @@ class Orchestrator:
         """
         query_id = query_id or str(uuid.uuid4())
         state = QueryState(query_id=query_id, question=question)
-        
+        _active_queries[query_id] = state
+
         try:
             # Status: Starting
             yield status_event(
@@ -326,21 +355,99 @@ class Orchestrator:
                             tc.result = result
                             tc.success = True
                             tc.duration_ms = int((time.time() - call_start) * 1000)
-                            
-                        # Propagate out-of-domain signal from specialist agents
-                        if result.get("is_out_of_domain"):
-                            state.out_of_domain = True
 
-                        result_str = json.dumps(result)
+                            # Check if the agent is asking for clarification
+                            if isinstance(result, dict) and result.get("needs_clarification"):
+                                state.needs_clarification = True
 
-                    except Exception as e:
-                        logger.error("Tool call failed: %s", e)
-                        tc.success = False
-                        tc.error = str(e)
-                        tc.duration_ms = int((time.time() - call_start) * 1000)
-                        result_str = json.dumps({"error": str(e)})
-                        
-                        # Observe event
+                                # Emit clarify event to frontend
+                                yield clarify_event(
+                                    query_id=query_id,
+                                    clarification_questions=result.get("clarification_questions", []),
+                                    agent_id=agent_id,
+                                )
+
+                                # Pause: wait for user to respond (5 minute timeout)
+                                try:
+                                    await asyncio.wait_for(
+                                        state.clarification_event.wait(), timeout=300.0
+                                    )
+                                except asyncio.TimeoutError:
+                                    yield error_event(
+                                        query_id=query_id,
+                                        error="Clarification timed out (5 minutes). Please try again.",
+                                        error_type="clarification_timeout",
+                                        recoverable=True,
+                                    )
+                                    return
+
+                                # Resume: call cyber_clarify with the user's answers
+                                clarify_args = {
+                                    "query_id": query_id,
+                                    "answers": state.clarification_answers,
+                                    "original_question": state.question,
+                                }
+
+                                yield act_event(
+                                    query_id=query_id,
+                                    tool_name="cyber_clarify",
+                                    tool_arguments=clarify_args,
+                                    agent_id=agent_id,
+                                    step=turn,
+                                )
+
+                                clarify_start = time.time()
+                                try:
+                                    clarify_result = await self.registry.invoke_tool(
+                                        agent_id=agent_id,
+                                        tool_name="cyber_clarify",
+                                        arguments=clarify_args,
+                                    )
+                                    clarify_result_str = json.dumps(clarify_result)
+                                    tc2 = ToolCall(
+                                        id=f"clarify-{query_id[:8]}",
+                                        tool_name="cyber_clarify",
+                                        agent_id=agent_id,
+                                        arguments=clarify_args,
+                                        result=clarify_result,
+                                        success=True,
+                                        duration_ms=int((time.time() - clarify_start) * 1000),
+                                    )
+                                    state.tool_calls.append(tc2)
+                                except Exception as _ce:
+                                    clarify_result_str = json.dumps({"error": str(_ce)})
+
+                                yield observe_event(
+                                    query_id=query_id,
+                                    tool_name="cyber_clarify",
+                                    result_preview=clarify_result_str[:500],
+                                    success=True,
+                                    duration_ms=int((time.time() - clarify_start) * 1000),
+                                    step=turn,
+                                )
+
+                                # Add clarification result to conversation and continue
+                                state.messages.append({
+                                    "role": "tool",
+                                    "tool_call_id": tool_call.id,
+                                    "content": clarify_result_str,
+                                })
+                                continue  # Let LLM process the clarification result
+
+                            # Propagate out-of-domain signal from specialist agents
+                            if isinstance(result, dict) and result.get("is_out_of_domain"):
+                                state.out_of_domain = True
+
+                            result_str = json.dumps(result)
+
+                        except Exception as e:
+                            logger.error("Tool call failed: %s", e)
+                            tc.success = False
+                            tc.error = str(e)
+                            tc.duration_ms = int((time.time() - call_start) * 1000)
+                            result_str = json.dumps({"error": str(e)})
+
+                        # Observe event (success and failure)
                         yield observe_event(
                             query_id=query_id,
                             tool_name=tool_name,
@@ -349,15 +456,15 @@ class Orchestrator:
                             duration_ms=tc.duration_ms,
                             step=turn,
                         )
-                        
+
                         # Add tool result to messages
                         state.messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "content": result_str,
                         })
-                    
-                    # Continue loop to let LLM process tool results
+
+                    # Continue while loop to let LLM process tool results
                     continue
                 
                 # No tool calls - check for final answer
@@ -402,6 +509,8 @@ class Orchestrator:
                 error_type="orchestrator_error",
                 recoverable=False,
             )
+        finally:
+            _active_queries.pop(query_id, None)
     
     async def execute(self, question: str, query_id: str | None = None) -> dict[str, Any]:
         """Execute query and return final result.

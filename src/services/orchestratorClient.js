@@ -35,8 +35,9 @@ export class OrchestratorClient {
     this.ws = null;
     this.listeners = new Map();
     this.reconnectAttempts = 0;
-    this.maxReconnects = 3;
+    this.maxReconnects = 5;
     this.connected = false;
+    this._pingInterval = null;
   }
 
   /**
@@ -53,12 +54,21 @@ export class OrchestratorClient {
         console.log('[Orchestrator] Connected');
         this.connected = true;
         this.reconnectAttempts = 0;
+        // Send a ping every 25 seconds to keep the connection alive through
+        // Azure Container Apps' 30-second idle WebSocket timeout
+        this._pingInterval = setInterval(() => {
+          if (this.connected && this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 25000);
         resolve();
       };
 
       this.ws.onclose = (event) => {
         console.log('[Orchestrator] Disconnected:', event.code, event.reason);
         this.connected = false;
+        clearInterval(this._pingInterval);
+        this._pingInterval = null;
         this._handleDisconnect();
       };
 
@@ -77,6 +87,8 @@ export class OrchestratorClient {
    * Disconnect from the orchestrator
    */
   disconnect() {
+    clearInterval(this._pingInterval);
+    this._pingInterval = null;
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -147,6 +159,8 @@ export class OrchestratorClient {
   _handleMessage(data) {
     try {
       const event = JSON.parse(data);
+      // Silently discard keepalive pong responses
+      if (event.type === 'pong') return;
       console.log('[Orchestrator] Event:', event.type, event);
 
       // Notify listeners

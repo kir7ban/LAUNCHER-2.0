@@ -341,6 +341,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 request = json.loads(data)
                 msg_type = request.get("type", "query")
 
+                if msg_type == "ping":
+                    await websocket.send_text(json.dumps({"type": "pong"}))
+                    continue
+
                 if msg_type == "clarify_response":
                     from orchestrator import deliver_clarification
                     query_id = request.get("query_id", "")

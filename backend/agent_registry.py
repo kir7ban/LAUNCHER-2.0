@@ -352,7 +352,10 @@ class AgentRegistry:
 
             conn.http_client = httpx.AsyncClient(
                 base_url=host_base,
-                headers=_get_auth_headers(config),
+                headers={
+                    "Accept": "application/json, text/event-stream",
+                    **_get_auth_headers(config),
+                },
                 timeout=httpx.Timeout(30.0, connect=5.0),
                 follow_redirects=True,
             )
@@ -432,9 +435,15 @@ class AgentRegistry:
                 path = path + "/"
             conn.mcp_path = path  # store for reuse by _discover_tools / _call_mcp
 
+            # MCP Streamable HTTP spec (MUST): every POST requires this Accept header.
+            # Set it on the client so initialize, tools/list, and tool calls all comply.
+            mcp_headers = {
+                "Accept": "application/json, text/event-stream",
+                **_get_auth_headers(config),
+            }
             conn.http_client = httpx.AsyncClient(
                 base_url=base,
-                headers=_get_auth_headers(config),
+                headers=mcp_headers,
                 timeout=httpx.Timeout(60.0, connect=10.0),
                 follow_redirects=True,
             )

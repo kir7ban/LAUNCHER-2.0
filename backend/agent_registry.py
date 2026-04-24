@@ -173,6 +173,8 @@ class AgentConnection:
     # Rendered routing knowledge string injected into the orchestrator system prompt.
     # Populated at startup by fetch_routing_knowledge() and refreshed periodically.
     routing_knowledge: str = ""
+    # Normalized MCP path (with trailing slash to avoid 307 redirects from Starlette).
+    mcp_path: str = "/mcp/"
     
 
 class AgentRegistry:
@@ -422,13 +424,13 @@ class AgentRegistry:
             from urllib.parse import urlparse
             parsed = urlparse(config.url)
             base = f"{parsed.scheme}://{parsed.netloc}"
-            path = parsed.path  # e.g. "/mcp"
-
-            # Normalize path: ensure trailing slash so Starlette doesn't 307-redirect
-            # /mcp → /mcp/ (Azure Container Apps TLS terminates at ingress, so the
-            # redirect would downgrade to http:// internally — avoid entirely).
-            if path and not path.endswith("/"):
+            # Normalize path: ensure trailing slash so Starlette doesn't 307-redirect.
+            # Azure Container Apps terminates TLS at the ingress, so the internal redirect
+            # would downgrade https→http — avoid entirely by always using /mcp/.
+            path = parsed.path or "/mcp"
+            if not path.endswith("/"):
                 path = path + "/"
+            conn.mcp_path = path  # store for reuse by _discover_tools / _call_mcp
 
             conn.http_client = httpx.AsyncClient(
                 base_url=base,
@@ -481,8 +483,7 @@ class AgentRegistry:
         if not conn.http_client or not conn.config.url:
             return
 
-        from urllib.parse import urlparse
-        path = urlparse(conn.config.url).path
+        path = conn.mcp_path  # already normalized with trailing slash
 
         try:
             list_body = {
@@ -695,8 +696,7 @@ class AgentRegistry:
             },
         }
 
-        from urllib.parse import urlparse
-        _path = urlparse(conn.config.url).path if conn.config.url else "/mcp"
+        _path = conn.mcp_path  # normalized with trailing slash to avoid 307 redirects
 
         try:
             response = await conn.http_client.post(

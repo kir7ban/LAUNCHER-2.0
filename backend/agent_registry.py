@@ -514,7 +514,22 @@ class AgentRegistry:
             }
             resp = await conn.http_client.post(path, json=list_body)
             resp.raise_for_status()
-            data = resp.json()
+
+            # The MCP Streamable HTTP server may respond with text/event-stream
+            # (SSE format) even for synchronous tool-list requests.
+            content_type = resp.headers.get("content-type", "")
+            if "text/event-stream" in content_type:
+                data_text = ""
+                for line in resp.text.splitlines():
+                    if line.startswith("data:"):
+                        data_text = line[5:].strip()
+                        break
+                if not data_text:
+                    logger.warning("Empty SSE response for tools/list from %s", conn.config.id)
+                    return
+                data = json.loads(data_text)
+            else:
+                data = resp.json()
 
             if "result" in data and "tools" in data["result"]:
                 conn.tools = [

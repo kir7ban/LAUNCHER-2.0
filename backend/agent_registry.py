@@ -358,6 +358,7 @@ class AgentRegistry:
                 },
                 timeout=httpx.Timeout(30.0, connect=5.0),
                 follow_redirects=True,
+                http2=False,
             )
 
             # Build tools from per-tool schemas defined in agents.json
@@ -446,6 +447,7 @@ class AgentRegistry:
                 headers=mcp_headers,
                 timeout=httpx.Timeout(60.0, connect=10.0),
                 follow_redirects=True,
+                http2=False,  # prevent 421 Misdirected Request on Azure HTTP/2 ingress
             )
 
             # MCP initialize handshake

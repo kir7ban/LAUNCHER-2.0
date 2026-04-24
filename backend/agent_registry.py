@@ -450,7 +450,9 @@ class AgentRegistry:
                 http2=False,  # prevent 421 Misdirected Request on Azure HTTP/2 ingress
             )
 
-            # MCP initialize handshake
+            # MCP initialize handshake.
+            # On success the server returns Mcp-Session-Id in the response headers.
+            # All subsequent requests on this session MUST include that header.
             init_body = {
                 "jsonrpc": "2.0",
                 "id": 1,
@@ -463,10 +465,17 @@ class AgentRegistry:
             }
             try:
                 resp = await conn.http_client.post(path, json=init_body)
-                if resp.status_code >= 500:
+                if resp.status_code == 200:
+                    session_id = resp.headers.get("mcp-session-id") or resp.headers.get("Mcp-Session-Id")
+                    if session_id:
+                        # Inject session ID into the client's default headers so that
+                        # all subsequent requests (tools/list, tool calls) include it.
+                        conn.http_client.headers["mcp-session-id"] = session_id
+                        logger.info("MCP session established for %s: %s", config.id, session_id[:8] + "...")
+                elif resp.status_code >= 500:
                     logger.warning("MCP initialize failed for %s: %d", config.id, resp.status_code)
-            except Exception:
-                pass  # Initialize may not be required; continue to tool discovery
+            except Exception as exc:
+                logger.debug("MCP initialize error for %s: %s", config.id, exc)
 
             conn.status = AgentStatus.CONNECTED
             logger.info("Connected to %s via streamable_http at %s", config.name, config.url)

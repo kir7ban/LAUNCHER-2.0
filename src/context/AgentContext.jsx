@@ -1,12 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { getClient, api, EventType } from '../services/orchestratorClient';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { getClient, EventType } from '../services/orchestratorClient';
 
 const AgentContext = createContext();
 
-// Feature flag for using real backend vs mock
-const USE_REAL_BACKEND = import.meta.env.VITE_USE_REAL_BACKEND === 'true';
+// ── ID generator ──────────────────────────────────────────────────────────────
+let _msgSeq = 0;
+function generateMsgId() {
+  return `msg-${Date.now()}-${_msgSeq++}`;
+}
 
-
+// ── Static seed data ──────────────────────────────────────────────────────────
 const initialAgents = [
   {
     id: 'internet-reimbursement',
@@ -82,84 +85,16 @@ const initialAgents = [
     name: 'Canteen Services',
     icon: '🍽️',
     status: 'active',
-    description: 'Provides daily menu information, meal pre-ordering, dietary preferences management, and cafeteria feedback.',
-    capabilities: ['Menu Display', 'Meal Pre-Order', 'Dietary Filters', 'Feedback Collection'],
-    tasksCompleted: 3420,
-    avgResponseTime: '0.3s',
-    successRate: '99.4%',
+    description: 'Manages cafeteria menus, meal pre-orders, dietary preferences, and nutritional information.',
+    capabilities: ['Menu Display', 'Meal Pre-ordering', 'Dietary Tracking', 'Nutritional Info'],
+    tasksCompleted: 3421,
+    avgResponseTime: '0.4s',
+    successRate: '99.8%',
     model: 'GPT-4o',
-    lastActive: 'Just now',
+    lastActive: '2 min ago',
     logs: [
-      { time: '10:00:00', message: 'Daily menu updated for all cafeterias', type: 'info' },
-      { time: '10:15:00', message: '45 meal pre-orders confirmed for lunch', type: 'success' },
-    ],
-  },
-  {
-    id: 'employee-onboarding',
-    name: 'Employee Guided Onboarding',
-    icon: '🎓',
-    status: 'active',
-    description: 'Guides new joiners through the onboarding process, documentation, training schedules, and team introductions.',
-    capabilities: ['Onboarding Checklist', 'Document Collection', 'Training Scheduling', 'Buddy Assignment'],
-    tasksCompleted: 645,
-    avgResponseTime: '1.2s',
-    successRate: '98.2%',
-    model: 'GPT-4o',
-    lastActive: '5 min ago',
-    logs: [
-      { time: '09:00:00', message: 'New joiner onboarding initiated for 3 employees', type: 'info' },
-      { time: '09:30:00', message: 'Document verification completed', type: 'success' },
-    ],
-  },
-  {
-    id: 'triage-process',
-    name: 'Triage Process',
-    icon: '🔀',
-    status: 'active',
-    description: 'Classifies, prioritizes, and routes incoming requests or tickets to the appropriate teams or agents.',
-    capabilities: ['Request Classification', 'Priority Assignment', 'Smart Routing', 'SLA Monitoring'],
-    tasksCompleted: 4120,
-    avgResponseTime: '0.2s',
-    successRate: '99.6%',
-    model: 'GPT-4o',
-    lastActive: 'Just now',
-    logs: [
-      { time: '10:32:05', message: 'Incoming ticket classified as Facility issue', type: 'info' },
-      { time: '10:32:06', message: 'Routed to Facility & IT Support agent', type: 'success' },
-    ],
-  },
-  {
-    id: 'visitor-management',
-    name: 'Visitor Management',
-    icon: '🏢',
-    status: 'idle',
-    description: 'Handles visitor pre-registration, gate pass generation, host notifications, and check-in/check-out tracking.',
-    capabilities: ['Pre-Registration', 'Gate Pass Generation', 'Host Notification', 'Visit Tracking'],
-    tasksCompleted: 890,
-    avgResponseTime: '0.7s',
-    successRate: '98.8%',
-    model: 'GPT-4o',
-    lastActive: '15 min ago',
-    logs: [
-      { time: '10:15:00', message: 'Gate pass generated for 2 visitors', type: 'success' },
-      { time: '10:15:01', message: 'Host notified via email and Teams', type: 'info' },
-    ],
-  },
-  {
-    id: 'retiral-benefits',
-    name: 'Retiral Benefits',
-    icon: '🏦',
-    status: 'idle',
-    description: 'Provides information on provident fund, gratuity, pension plans, and retirement benefit calculations.',
-    capabilities: ['PF Balance Inquiry', 'Gratuity Calculator', 'Pension Planning', 'Benefit Statements'],
-    tasksCompleted: 312,
-    avgResponseTime: '1.5s',
-    successRate: '99.0%',
-    model: 'GPT-4o',
-    lastActive: '20 min ago',
-    logs: [
-      { time: '10:10:00', message: 'PF balance query processed for employee', type: 'success' },
-      { time: '10:12:00', message: 'Gratuity estimate calculated', type: 'success' },
+      { time: '10:30:00', message: 'Today\'s menu updated successfully', type: 'success' },
+      { time: '10:31:30', message: '45 meal pre-orders confirmed for lunch', type: 'info' },
     ],
   },
   {
@@ -167,64 +102,93 @@ const initialAgents = [
     name: 'Facility & IT Support',
     icon: '🔧',
     status: 'active',
-    description: 'Manages IT helpdesk tickets, facility maintenance requests, asset provisioning, and infrastructure issues.',
-    capabilities: ['Ticket Creation', 'Asset Management', 'Maintenance Requests', 'Troubleshooting'],
-    tasksCompleted: 2780,
-    avgResponseTime: '0.9s',
-    successRate: '97.5%',
+    description: 'Handles facility management requests, IT support tickets, and infrastructure maintenance.',
+    capabilities: ['Ticket Management', 'IT Support', 'Facility Requests', 'SLA Tracking'],
+    tasksCompleted: 1234,
+    avgResponseTime: '1.2s',
+    successRate: '96.5%',
     model: 'GPT-4o',
-    lastActive: '2 min ago',
+    lastActive: '5 min ago',
     logs: [
-      { time: '10:30:00', message: 'IT ticket #4521 resolved - VPN access restored', type: 'success' },
-      { time: '10:31:00', message: 'Facility request: AC repair in Block B, Floor 3', type: 'info' },
+      { time: '10:25:00', message: 'IT ticket IT-2025-4521 resolved', type: 'success' },
+      { time: '10:28:00', message: 'New facility request received', type: 'info' },
+    ],
+  },
+  {
+    id: 'employee-onboarding',
+    name: 'Employee Guided Onboarding',
+    icon: '👤',
+    status: 'active',
+    description: 'Guides new employees through the onboarding process, documentation, and initial setup.',
+    capabilities: ['Onboarding Workflow', 'Document Collection', 'Training Assignment', 'Access Provisioning'],
+    tasksCompleted: 456,
+    avgResponseTime: '1.5s',
+    successRate: '98.2%',
+    model: 'GPT-4o',
+    lastActive: '10 min ago',
+    logs: [
+      { time: '10:20:00', message: '3 new joiners onboarding initiated', type: 'info' },
+      { time: '10:22:00', message: 'Access credentials provisioned', type: 'success' },
+    ],
+  },
+  {
+    id: 'visitor-management',
+    name: 'Visitor Management',
+    icon: '🏢',
+    status: 'idle',
+    description: 'Manages visitor registration, gate passes, and corporate access control.',
+    capabilities: ['Visitor Registration', 'Gate Pass Generation', 'Host Notification', 'Access Tracking'],
+    tasksCompleted: 789,
+    avgResponseTime: '0.9s',
+    successRate: '99.0%',
+    model: 'GPT-4o',
+    lastActive: '30 min ago',
+    logs: [
+      { time: '10:00:00', message: 'Visitor pass VP-4521 generated', type: 'success' },
+    ],
+  },
+  {
+    id: 'retiral-benefits',
+    name: 'Retiral Benefits',
+    icon: '🏦',
+    status: 'idle',
+    description: 'Provides information on PF, gratuity, pension, and other retiral benefits.',
+    capabilities: ['PF Balance', 'Gratuity Calculation', 'Pension Planning', 'Benefits Overview'],
+    tasksCompleted: 321,
+    avgResponseTime: '1.1s',
+    successRate: '99.3%',
+    model: 'GPT-4o',
+    lastActive: '1 hr ago',
+    logs: [
+      { time: '09:30:00', message: 'PF statement generated for Q1', type: 'success' },
+    ],
+  },
+  {
+    id: 'triage-process',
+    name: 'Triage Process',
+    icon: '🎯',
+    status: 'active',
+    description: 'Classifies and routes incoming requests to the appropriate specialized agents.',
+    capabilities: ['Request Classification', 'Priority Assignment', 'Agent Routing', 'SLA Management'],
+    tasksCompleted: 5678,
+    avgResponseTime: '0.3s',
+    successRate: '97.1%',
+    model: 'GPT-4o',
+    lastActive: 'Just now',
+    logs: [
+      { time: '10:32:00', message: 'Request routed to Internet Reimbursement', type: 'info' },
+      { time: '10:31:55', message: 'Priority classified: Medium', type: 'info' },
     ],
   },
 ];
 
 const initialConversations = [
-  { id: 'conv-1', title: 'Internet Reimbursement Claim', timestamp: 'Today 10:30 AM', preview: 'Claim my internet reimb...' },
-  { id: 'conv-2', title: 'Canteen Menu Today', timestamp: 'Today 9:15 AM', preview: 'What is the lunch menu...' },
-  { id: 'conv-3', title: 'IT Ticket - VPN Issue', timestamp: 'Yesterday', preview: 'My VPN is not connecting...' },
-  { id: 'conv-4', title: 'Book a Cab for Tomorrow', timestamp: 'Yesterday', preview: 'I need a cab pickup at...' },
-  { id: 'conv-5', title: 'New Joiner Onboarding', timestamp: 'Mar 23', preview: 'Guide me through the...' },
-];
-
-const initialMessages = [
+  { id: 'conv-new', title: 'New Conversation', timestamp: 'Just now', preview: '' },
   {
-    id: 'msg-init-1',
-    role: 'user',
-    content: 'Claim my internet reimbursement for March.',
-    timestamp: '10:30 AM',
-  },
-  {
-    id: 'msg-init-2',
-    role: 'orchestrator',
-    content: "I'll process your internet reimbursement claim for March. Let me coordinate with the relevant agents:\n\n1. **Internet Reimbursement** → Validate claim details and policy\n2. **EzyClaim** → Submit and route the claim for approval\n3. **Triage Process** → Assign priority and track SLA\n\nStarting the workflow now...",
-    timestamp: '10:30 AM',
-    agentId: 'orchestrator',
-    delegations: [
-      { agent: 'Internet Reimbursement', task: 'Validate claim & policy check', status: 'completed' },
-      { agent: 'EzyClaim', task: 'Submit claim for approval', status: 'completed' },
-      { agent: 'Triage Process', task: 'Assign priority & track SLA', status: 'completed' },
-    ],
-  },
-  {
-    id: 'msg-init-3',
-    role: 'agent',
-    content: '**Claim Validated:** Your internet reimbursement for March has been verified. Monthly allowance: Rs.1,500. Receipt amount matches the policy limit. Claim is eligible for processing.',
-    timestamp: '10:31 AM',
-    agentId: 'internet-reimbursement',
-    agentName: 'Internet Reimbursement',
-    agentIcon: '🌐',
-  },
-  {
-    id: 'msg-init-4',
-    role: 'agent',
-    content: '**Claim Submitted:**\n\n- **Claim ID:** EC-2025-03-4821\n- **Amount:** Rs.1,500\n- **Category:** Internet / Broadband\n- **Status:** Sent to manager for approval\n\nYou will receive an email notification once approved. Typical processing time: 2-3 business days.',
-    timestamp: '10:31 AM',
-    agentId: 'ezyclaim',
-    agentName: 'EzyClaim',
-    agentIcon: '📋',
+    id: 'conv-1',
+    title: 'Internet Reimbursement',
+    timestamp: '10:32 AM',
+    preview: 'Claim my internet reimbursement for March.',
   },
 ];
 
@@ -244,42 +208,30 @@ const initialNotifications = [
   { id: 'n6', text: 'Employee Onboarding: 3 new joiners starting today', read: false, time: '9:00 AM', agentId: 'employee-onboarding' },
 ];
 
+// ── Provider ──────────────────────────────────────────────────────────────────
 export function AgentProvider({ children }) {
   const [agents, setAgents] = useState(initialAgents);
   const [conversations, setConversations] = useState(initialConversations);
-  const [pendingClarification, setPendingClarification] = useState(null);
-  // Shape: { queryId: string, questions: array, agentId: string } | null
   const [activeConversation, setActiveConversation] = useState('conv-new');
-  const [messagesMap, setMessagesMap] = useState({
-    'conv-new': [],
-    'conv-1': [...initialMessages],
-  });
+  const [messagesMap, setMessagesMap] = useState({ 'conv-new': [], 'conv-1': [] });
   const [pendingMessage, setPendingMessage] = useState(null);
   const [workflows, setWorkflows] = useState(initialWorkflows);
   const [notifications, setNotifications] = useState(initialNotifications);
-  const [conversationStates, setConversationStates] = useState({});
+  const [pendingClarification, setPendingClarification] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
 
   // Derived active messages for current conversation
   const messages = messagesMap[activeConversation] || [];
 
-  // Compatibility shim: routes flat setMessages updates into the messagesMap structure
-  // so the real-backend WebSocket handlers work without a full rewrite
-  const setMessages = (updater) => {
-    const convId = activeConversationRef.current;
-    setMessagesMap(prev => ({
-      ...prev,
-      [convId]: typeof updater === 'function' ? updater(prev[convId] || []) : updater,
-    }));
-  };
-
-  // Refs to avoid stale closures in async pipeline
-  const messageQueueRef = useRef(new MessageQueue());
+  // Refs to avoid stale closures in async handlers
   const activeConversationRef = useRef(activeConversation);
-  const conversationStatesRef = useRef(conversationStates);
+  const agentsRef = useRef(agents);
+  const wsHandlersSetup = useRef(false);
 
   useEffect(() => { activeConversationRef.current = activeConversation; }, [activeConversation]);
-  useEffect(() => { conversationStatesRef.current = conversationStates; }, [conversationStates]);
+  useEffect(() => { agentsRef.current = agents; }, [agents]);
 
+  // ── Message helpers ───────────────────────────────────────────────────────
   const addMessage = (convId, msg) => {
     setMessagesMap(prev => ({
       ...prev,
@@ -287,6 +239,24 @@ export function AgentProvider({ children }) {
     }));
   };
 
+  const updateLastOrchestratorMessage = (convId, updater) => {
+    setMessagesMap(prev => {
+      const msgs = prev[convId] || [];
+      const lastOrchIdx = msgs.map((m, i) => m.role === 'orchestrator' ? i : -1).filter(i => i >= 0).pop();
+      if (lastOrchIdx === undefined) return prev;
+      const updated = msgs.map((m, i) => i === lastOrchIdx ? updater(m) : m);
+      return { ...prev, [convId]: updated };
+    });
+  };
+
+  const updateMessages = (convId, updater) => {
+    setMessagesMap(prev => ({
+      ...prev,
+      [convId]: updater(prev[convId] || []),
+    }));
+  };
+
+  // ── Conversation management ───────────────────────────────────────────────
   const createConversation = (title) => {
     const id = 'conv-' + Date.now();
     const newConv = {
@@ -301,164 +271,53 @@ export function AgentProvider({ children }) {
     return id;
   };
 
-  const sendMessage = (content) => {
-    const convId = activeConversationRef.current;
-    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const userMsg = {
-      id: generateMsgId(),
-      role: 'user',
-      content,
-      timestamp: ts,
-    };
-    addMessage(convId, userMsg);
-
-    if (USE_REAL_BACKEND) {
-      // Real backend: use WebSocket streaming
-      sendToBackend(content, userMsg.id);
-    } else {
-      // Mock mode: simulate responses
-      simulateMockResponse(content, convId, ts);
-    }
-  };
-
-  // Send to real backend via WebSocket
-  const sendToBackend = async (content, userMsgId) => {
-    try {
-      const client = getClient();
-      
-      // Ensure connected
-      if (!client.connected) {
-        await client.connect();
-        setupWebSocketHandlers(client);
-      }
-
-      // Add orchestrator thinking message
-      const thinkingMsg = {
-        id: userMsgId + 1,
-        role: 'orchestrator',
-        content: 'Analyzing your request and routing to the appropriate agents...',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        agentId: 'orchestrator',
-        delegations: [],
-        isStreaming: true,
-      };
-      setMessages((prev) => [...prev, thinkingMsg]);
-
-      // Send query
-      client.sendQuery(content);
-    } catch (error) {
-      console.error('Failed to send to backend:', error);
-      // Fallback to mock
-      simulateMockResponse(content);
-    }
-  };
-
-  const submitClarification = (answers) => {
-    if (!pendingClarification) return;
-
-    const client = getClient();
-    client.sendClarifyResponse(pendingClarification.queryId, answers);
-
-    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        role: 'user',
-        content: answers,
-        timestamp: ts,
-      },
-      {
-        id: Date.now() + 1,
-        role: 'orchestrator',
-        content: 'Got it! Searching with your context...',
-        timestamp: ts,
-        agentId: 'orchestrator',
-        delegations: [],
-        isStreaming: true,
-      },
-    ]);
-
-    setPendingClarification(null);
-  };
-
-  // Setup WebSocket event handlers
+  // ── WebSocket event handlers ──────────────────────────────────────────────
   const setupWebSocketHandlers = (client) => {
+    if (wsHandlersSetup.current) return;
+    wsHandlersSetup.current = true;
+
     client.on(EventType.DELEGATE, (event) => {
-      setMessages((prev) => {
-        const lastOrch = prev.findLast(m => m.role === 'orchestrator');
-        if (lastOrch && lastOrch.isStreaming) {
-          const delegations = [...(lastOrch.delegations || [])];
-          delegations.push({
-            agent: event.to_agent_name,
-            task: event.reason || 'Processing request',
-            status: 'in-progress',
-          });
-          return prev.map(m => m.id === lastOrch.id 
-            ? { ...m, delegations, content: `Routing to **${event.to_agent_name}**...` }
-            : m
-          );
-        }
-        return prev;
+      const convId = activeConversationRef.current;
+      updateLastOrchestratorMessage(convId, (m) => {
+        if (!m.isStreaming) return m;
+        const delegations = [...(m.delegations || []), {
+          agent: event.to_agent_name,
+          task: event.reason || 'Processing request',
+          status: 'in-progress',
+        }];
+        return { ...m, delegations, content: `Routing to **${event.to_agent_name}**...` };
       });
     });
 
     client.on(EventType.THINK, (event) => {
-      setMessages((prev) => {
-        const lastOrch = prev.findLast(m => m.role === 'orchestrator' && m.isStreaming);
-        if (lastOrch) {
-          return prev.map(m => m.id === lastOrch.id 
-            ? { ...m, content: event.reasoning || 'Thinking...' }
-            : m
-          );
-        }
-        return prev;
-      });
+      const convId = activeConversationRef.current;
+      updateLastOrchestratorMessage(convId, (m) =>
+        m.isStreaming ? { ...m, content: event.reasoning || 'Thinking...' } : m
+      );
     });
 
     client.on(EventType.ACT, (event) => {
-      setMessages((prev) => {
-        const lastOrch = prev.findLast(m => m.role === 'orchestrator');
-        if (lastOrch && lastOrch.isStreaming) {
-          const delegations = [...(lastOrch.delegations || [])];
-          // Update to show tool being called
-          const existing = delegations.find(d => d.agent.toLowerCase().includes(event.agent_id));
-          if (!existing) {
-            delegations.push({
-              agent: event.agent_id,
-              task: `Calling ${event.tool_name}`,
-              status: 'in-progress',
-            });
-          }
-          return prev.map(m => m.id === lastOrch.id 
-            ? { ...m, delegations }
-            : m
-          );
+      const convId = activeConversationRef.current;
+      updateLastOrchestratorMessage(convId, (m) => {
+        if (!m.isStreaming) return m;
+        const delegations = [...(m.delegations || [])];
+        if (!delegations.find(d => d.agent.toLowerCase().includes(event.agent_id))) {
+          delegations.push({ agent: event.agent_id, task: `Calling ${event.tool_name}`, status: 'in-progress' });
         }
-        return prev;
+        return { ...m, delegations };
       });
     });
 
     client.on(EventType.ANSWER, (event) => {
-      // Find the agent info
-      const agent = agents.find(a => a.id === event.agent_id) || {
-        name: 'Assistant',
-        icon: '🤖',
-      };
+      const convId = activeConversationRef.current;
+      const agent = agentsRef.current.find(a => a.id === event.agent_id) || { name: 'Assistant', icon: '🤖' };
 
-      setMessages((prev) => {
-        // Mark orchestrator message as done
-        const updated = prev.map(m => 
-          m.role === 'orchestrator' && m.isStreaming 
-            ? { ...m, isStreaming: false }
-            : m
+      updateMessages(convId, (msgs) => {
+        const updated = msgs.map(m =>
+          m.role === 'orchestrator' && m.isStreaming ? { ...m, isStreaming: false } : m
         );
-
-        // Add the final answer
-        const answerMsg = {
-          id: Date.now(),
+        return [...updated, {
+          id: generateMsgId(),
           role: 'agent',
           content: event.answer,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -468,26 +327,19 @@ export function AgentProvider({ children }) {
           confidence: event.confidence,
           grounded: event.grounded,
           sources: event.sources,
-        };
-
-        return [...updated, answerMsg];
+        }];
       });
     });
 
     client.on(EventType.CLARIFY, (event) => {
-      // Stop the streaming orchestrator indicator
-      setMessages((prev) =>
-        prev.map((m) =>
+      const convId = activeConversationRef.current;
+      updateMessages(convId, (msgs) =>
+        msgs.map(m =>
           m.role === 'orchestrator' && m.isStreaming
-            ? {
-                ...m,
-                isStreaming: false,
-                content: 'I need a bit more context to give you the best answer:',
-              }
+            ? { ...m, isStreaming: false, content: 'I need a bit more context to give you the best answer:' }
             : m
         )
       );
-      // Store pending clarification
       setPendingClarification({
         queryId: event.query_id,
         questions: event.clarification_questions || [],
@@ -496,133 +348,147 @@ export function AgentProvider({ children }) {
     });
 
     client.on(EventType.ERROR, (event) => {
-      setMessages((prev) => {
-        const updated = prev.map(m => 
-          m.role === 'orchestrator' && m.isStreaming 
-            ? { ...m, isStreaming: false }
-            : m
+      const convId = activeConversationRef.current;
+      updateMessages(convId, (msgs) => {
+        const updated = msgs.map(m =>
+          m.role === 'orchestrator' && m.isStreaming ? { ...m, isStreaming: false } : m
         );
-
-        const errorMsg = {
-          id: Date.now(),
+        return [...updated, {
+          id: generateMsgId(),
           role: 'system',
-          content: `**Error:** ${event.error}`,
+          content: `**Error:** ${event.error || 'An unexpected error occurred. Please try again.'}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isError: true,
-        };
-
-        return [...updated, errorMsg];
+        }];
       });
+      setConnectionStatus('error');
     });
   };
 
-  // Mock response simulation (for testing without backend)
-  const simulateMockResponse = (content, convId, ts) => {
-    convId = convId || activeConversationRef.current;
-    ts = ts || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    // Simulate orchestrator response
-    setTimeout(() => {
-      const orchMsg = {
-        id: messages.length + 2,
-        role: 'orchestrator',
-        content: `Got it! I'm analyzing your request and routing it to the right agents...\n\nI'll delegate this to the **Triage Process** agent for classification and the appropriate service agent for resolution.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        agentId: 'orchestrator',
-        delegations: [
-          { agent: 'Triage Process', task: 'Classify & route request', status: 'in-progress' },
-          { agent: 'Facility & IT Support', task: 'Process service request', status: 'pending' },
-        ],
-      };
-      setMessages((prev) => [...prev, orchMsg]);
-    }, 800);
+  // ── Send message ──────────────────────────────────────────────────────────
+  const sendMessage = async (content) => {
+    const convId = activeConversationRef.current;
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Update conversation title if first message
+    // Add the user message immediately
+    const userMsg = { id: generateMsgId(), role: 'user', content, timestamp: ts };
+    addMessage(convId, userMsg);
+
+    // Update conversation preview
     setConversations(prev => prev.map(c =>
-      c.id === convId && c.title === 'New Conversation'
-        ? { ...c, title: content.length > 40 ? content.substring(0, content.lastIndexOf(' ', 40)) + '...' : content, preview: content.substring(0, 40) }
+      c.id === convId && (c.title === 'New Conversation' || c.preview === '')
+        ? { ...c, title: content.length > 40 ? content.substring(0, 40) + '…' : content, preview: content.substring(0, 60) }
         : c
     ));
 
-    // Process through mock orchestrator
-    const convState = conversationStatesRef.current[convId] || { activeAgent: null, currentState: null };
-    const result = processMessage(content, convState, agents);
+    try {
+      const client = getClient();
 
-    // Update conversation state
-    setConversationStates(prev => ({ ...prev, [convId]: result.updatedState }));
+      if (!client.connected) {
+        setConnectionStatus('connecting');
+        await client.connect();
+        setupWebSocketHandlers(client);
+        setConnectionStatus('connected');
+      }
 
-    // Queue the response pipeline
-    messageQueueRef.current.enqueue(() => new Promise((resolve) => {
-      // Show typing indicator
-      addMessage(convId, { id: generateMsgId(), role: 'typing', agentName: 'Orchestrator', agentIcon: '🎯', timestamp: ts });
+      // Add orchestrator thinking indicator
+      const thinkingMsg = {
+        id: generateMsgId(),
+        role: 'orchestrator',
+        content: 'Analyzing your request and routing to the appropriate agents...',
+        timestamp: ts,
+        agentId: 'orchestrator',
+        delegations: [],
+        isStreaming: true,
+      };
+      addMessage(convId, thinkingMsg);
 
-      setTimeout(() => {
-        // Remove typing, add orchestrator message
-        setMessagesMap(prev => ({
-          ...prev,
-          [convId]: prev[convId].filter(m => m.role !== 'typing').concat({
-            id: generateMsgId(),
-            role: 'orchestrator',
-            content: result.orchestratorMsg.content,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            agentId: 'orchestrator',
-            delegations: result.orchestratorMsg.delegations.map(d => ({ ...d })),
-          }),
-        }));
-
-        // Update delegations to in-progress
-        setTimeout(() => {
-          setMessagesMap(prev => ({
-            ...prev,
-            [convId]: prev[convId].map(m =>
-              m.role === 'orchestrator' && m.delegations
-                ? { ...m, delegations: m.delegations.map((d, i) => i === 0 ? { ...d, status: 'in-progress' } : d) }
-                : m
-            ),
-          }));
-        }, 200);
-
-        // Agent typing indicator
-        setTimeout(() => {
-          addMessage(convId, { id: generateMsgId(), role: 'typing', agentName: result.agentMsg.agentName, agentIcon: result.agentMsg.agentIcon });
-        }, 700);
-
-        // Agent response + complete delegations
-        setTimeout(() => {
-          setMessagesMap(prev => ({
-            ...prev,
-            [convId]: prev[convId]
-              .filter(m => m.role !== 'typing')
-              .map(m =>
-                m.role === 'orchestrator' && m.delegations
-                  ? { ...m, delegations: m.delegations.map(d => ({ ...d, status: 'completed' })) }
-                  : m
-              )
-              .concat({
-                id: generateMsgId(),
-                role: 'agent',
-                content: result.agentMsg.content,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                agentId: result.agentMsg.agentId,
-                agentName: result.agentMsg.agentName,
-                agentIcon: result.agentMsg.agentIcon,
-              }),
-          }));
-          resolve();
-        }, 1400);
-      }, 800);
-    }));
+      client.sendQuery(content);
+    } catch (error) {
+      console.error('[AgentContext] Failed to send message:', error);
+      setConnectionStatus('error');
+      addMessage(convId, {
+        id: generateMsgId(),
+        role: 'system',
+        content: '**Connection error:** Unable to reach the orchestrator. Please check your connection and try again.',
+        timestamp: ts,
+        isError: true,
+      });
+    }
   };
+
+  // ── Submit clarification answers ──────────────────────────────────────────
+  const submitClarification = (answers) => {
+    if (!pendingClarification) return;
+
+    const client = getClient();
+    client.sendClarifyResponse(pendingClarification.queryId, answers);
+
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const convId = activeConversationRef.current;
+
+    addMessage(convId, { id: generateMsgId(), role: 'user', content: answers, timestamp: ts });
+    addMessage(convId, {
+      id: generateMsgId(),
+      role: 'orchestrator',
+      content: 'Got it! Searching with your context...',
+      timestamp: ts,
+      agentId: 'orchestrator',
+      delegations: [],
+      isStreaming: true,
+    });
+
+    setPendingClarification(null);
+  };
+
+  // ── Auto-connect on mount ─────────────────────────────────────────────────
+  useEffect(() => {
+    const client = getClient();
+    setConnectionStatus('connecting');
+    client.connect()
+      .then(() => {
+        setupWebSocketHandlers(client);
+        setConnectionStatus('connected');
+      })
+      .catch((err) => {
+        console.warn('[AgentContext] Initial connection failed, will retry on first message:', err);
+        setConnectionStatus('error');
+      });
+
+    return () => {
+      wsHandlersSetup.current = false;
+      client.disconnect();
+    };
+  }, []);
+
+  // ── Handle pending messages (set after conversation switch) ───────────────
+  useEffect(() => {
+    if (!pendingMessage) return;
+    const msg = pendingMessage;
+    setPendingMessage(null);
+    sendMessage(msg);
+  }, [pendingMessage]);
 
   return (
     <AgentContext.Provider
       value={{
-        agents, setAgents,
-        conversations, setConversations,
-        activeConversation, setActiveConversation,
+        agents,
+        setAgents,
+        conversations,
+        setConversations,
+        activeConversation,
+        setActiveConversation,
         messages,
         sendMessage,
+        createConversation,
+        setPendingMessage,
+        workflows,
+        setWorkflows,
+        notifications,
+        setNotifications,
         pendingClarification,
         submitClarification,
+        connectionStatus,
       }}
     >
       {children}

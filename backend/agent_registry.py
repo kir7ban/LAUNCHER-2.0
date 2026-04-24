@@ -702,6 +702,58 @@ class AgentRegistry:
         
         return {"error": f"Unknown internal agent: {agent_id}"}
     
+    async def _reinitialize_mcp_session(self, conn: AgentConnection) -> bool:
+        """Re-establish an MCP session after expiry or agent restart.
+
+        Clears the stale ``mcp-session-id`` header, sends a fresh ``initialize``
+        handshake, and stores the new session ID.  Returns True on success.
+
+        This is called automatically by ``_invoke_mcp`` whenever a 404 response
+        is received — 404 from FastMCP's StreamableHTTPSessionManager means the
+        session ID is unknown (expired or the agent was restarted).
+        """
+        if not conn.http_client:
+            return False
+
+        # Drop the stale session header so initialize is treated as a new session.
+        conn.http_client.headers.pop("mcp-session-id", None)
+
+        path = conn.mcp_path
+        init_body = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "clientInfo": {"name": "launcher-orchestrator", "version": "1.0"},
+                "capabilities": {},
+            },
+        }
+        try:
+            resp = await conn.http_client.post(path, json=init_body, timeout=15.0)
+            if resp.status_code == 200:
+                session_id = (
+                    resp.headers.get("mcp-session-id")
+                    or resp.headers.get("Mcp-Session-Id")
+                )
+                if session_id:
+                    conn.http_client.headers["mcp-session-id"] = session_id
+                logger.info(
+                    "_reinitialize_mcp_session: new session for %s — %s",
+                    conn.config.id,
+                    (session_id[:8] + "...") if session_id else "no-session-id",
+                )
+                return True
+            logger.warning(
+                "_reinitialize_mcp_session: init returned %d for %s",
+                resp.status_code, conn.config.id,
+            )
+        except Exception as exc:
+            logger.error(
+                "_reinitialize_mcp_session: failed for %s: %s", conn.config.id, exc
+            )
+        return False
+
     async def _invoke_mcp(
         self,
         conn: AgentConnection,
@@ -714,37 +766,37 @@ class AgentRegistry:
         FastMCP's streamable HTTP endpoint listens at its mount path (e.g. /mcp).
         Requests are sent as JSON-RPC 2.0 POST with method=tools/call.
         The response may be a direct JSON object or an SSE stream; we handle both.
+
+        404 responses are treated as session expiry (the agent restarted or the
+        session TTL elapsed).  The session is transparently re-initialized and the
+        call retried once before raising an error.
         """
         if not conn.http_client:
             raise RuntimeError(f"No HTTP client for agent {conn.config.id}")
 
         import uuid as _uuid
-        call_id = str(_uuid.uuid4())
 
-        request_body = {
-            "jsonrpc": "2.0",
-            "id": call_id,
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments,
-            },
-        }
+        def _build_request(tool: str, args: dict) -> dict:
+            return {
+                "jsonrpc": "2.0",
+                "id": str(_uuid.uuid4()),
+                "method": "tools/call",
+                "params": {"name": tool, "arguments": args},
+            }
 
         _path = conn.mcp_path  # normalized with trailing slash to avoid 307 redirects
 
-        try:
-            response = await conn.http_client.post(
+        async def _post(body: dict) -> "httpx.Response":
+            return await conn.http_client.post(
                 _path,
-                json=request_body,
+                json=body,
                 headers={"Accept": "application/json, text/event-stream"},
                 timeout=timeout,
             )
-            response.raise_for_status()
 
+        def _parse(response: "httpx.Response") -> dict[str, Any]:
+            """Parse a tools/call HTTP response (JSON or SSE) into a plain dict."""
             content_type = response.headers.get("content-type", "")
-
-            # Handle SSE stream response
             if "text/event-stream" in content_type:
                 result_text = ""
                 for line in response.text.splitlines():
@@ -757,7 +809,6 @@ class AgentRegistry:
             else:
                 result = response.json()
 
-            # Unwrap JSON-RPC response
             if "result" in result:
                 content = result["result"].get("content", [])
                 if content and content[0].get("type") == "text":
@@ -772,6 +823,30 @@ class AgentRegistry:
                 raise RuntimeError(f"MCP error: {result['error']}")
 
             return result
+
+        try:
+            request_body = _build_request(tool_name, arguments)
+            response = await _post(request_body)
+
+            # 404 = session expired (agent restarted or FastMCP session TTL elapsed).
+            # Re-initialize the session transparently and retry the call once.
+            if response.status_code == 404:
+                logger.warning(
+                    "_invoke_mcp: 404 for %s.%s — session likely expired, "
+                    "re-initializing MCP session...",
+                    conn.config.id, tool_name,
+                )
+                session_ok = await self._reinitialize_mcp_session(conn)
+                if session_ok:
+                    request_body = _build_request(tool_name, arguments)
+                    response = await _post(request_body)
+                    logger.info(
+                        "_invoke_mcp: retry after re-init returned %d for %s.%s",
+                        response.status_code, conn.config.id, tool_name,
+                    )
+
+            response.raise_for_status()
+            return _parse(response)
 
         except httpx.HTTPStatusError as e:
             logger.error("MCP call failed: HTTP %s — %s", e.response.status_code, e)

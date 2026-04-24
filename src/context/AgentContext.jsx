@@ -247,48 +247,8 @@ const initialNotifications = [
 export function AgentProvider({ children }) {
   const [agents, setAgents] = useState(initialAgents);
   const [conversations, setConversations] = useState(initialConversations);
-  const [activeConversation, setActiveConversation] = useState('conv-1');
   const [pendingClarification, setPendingClarification] = useState(null);
   // Shape: { queryId: string, questions: array, agentId: string } | null
-
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: 'user',
-      content: 'Claim my internet reimbursement for March.',
-      timestamp: '10:30 AM',
-    },
-    {
-      id: 2,
-      role: 'orchestrator',
-      content: "I'll process your internet reimbursement claim for March. Let me coordinate with the relevant agents:\n\n1. **Internet Reimbursement** → Validate claim details and policy\n2. **EzyClaim** → Submit and route the claim for approval\n3. **Triage Process** → Assign priority and track SLA\n\nStarting the workflow now...",
-      timestamp: '10:30 AM',
-      agentId: 'orchestrator',
-      delegations: [
-        { agent: 'Internet Reimbursement', task: 'Validate claim & policy check', status: 'completed' },
-        { agent: 'EzyClaim', task: 'Submit claim for approval', status: 'completed' },
-        { agent: 'Triage Process', task: 'Assign priority & track SLA', status: 'in-progress' },
-      ],
-    },
-    {
-      id: 3,
-      role: 'agent',
-      content: '**Claim Validated:** Your internet reimbursement for March has been verified. Monthly allowance: ₹1,500. Receipt amount matches the policy limit. Claim is eligible for processing.',
-      timestamp: '10:31 AM',
-      agentId: 'internet-reimbursement',
-      agentName: 'Internet Reimbursement',
-      agentIcon: '🌐',
-    },
-    {
-      id: 4,
-      role: 'agent',
-      content: '**Claim Submitted:**\n\n- **Claim ID:** EC-2025-03-4821\n- **Amount:** ₹1,500\n- **Category:** Internet / Broadband\n- **Status:** Sent to manager for approval\n\nYou will receive an email notification once approved. Typical processing time: 2–3 business days.',
-      timestamp: '10:31 AM',
-      agentId: 'ezyclaim',
-      agentName: 'EzyClaim',
-      agentIcon: '📋',
-    },
-  ]);
   const [activeConversation, setActiveConversation] = useState('conv-new');
   const [messagesMap, setMessagesMap] = useState({
     'conv-new': [],
@@ -299,8 +259,18 @@ export function AgentProvider({ children }) {
   const [notifications, setNotifications] = useState(initialNotifications);
   const [conversationStates, setConversationStates] = useState({});
 
-  // Derived active messages
+  // Derived active messages for current conversation
   const messages = messagesMap[activeConversation] || [];
+
+  // Compatibility shim: routes flat setMessages updates into the messagesMap structure
+  // so the real-backend WebSocket handlers work without a full rewrite
+  const setMessages = (updater) => {
+    const convId = activeConversationRef.current;
+    setMessagesMap(prev => ({
+      ...prev,
+      [convId]: typeof updater === 'function' ? updater(prev[convId] || []) : updater,
+    }));
+  };
 
   // Refs to avoid stale closures in async pipeline
   const messageQueueRef = useRef(new MessageQueue());
@@ -335,12 +305,20 @@ export function AgentProvider({ children }) {
     const convId = activeConversationRef.current;
     const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    const userMsg = {
+      id: generateMsgId(),
+      role: 'user',
+      content,
+      timestamp: ts,
+    };
+    addMessage(convId, userMsg);
+
     if (USE_REAL_BACKEND) {
       // Real backend: use WebSocket streaming
       sendToBackend(content, userMsg.id);
     } else {
       // Mock mode: simulate responses
-      simulateMockResponse(content);
+      simulateMockResponse(content, convId, ts);
     }
   };
 
@@ -539,7 +517,9 @@ export function AgentProvider({ children }) {
   };
 
   // Mock response simulation (for testing without backend)
-  const simulateMockResponse = (content) => {
+  const simulateMockResponse = (content, convId, ts) => {
+    convId = convId || activeConversationRef.current;
+    ts = ts || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     // Simulate orchestrator response
     setTimeout(() => {
       const orchMsg = {

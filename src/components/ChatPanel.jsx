@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../context/AgentContext';
 import ClarificationCard from './ClarificationCard';
+import ChatWelcomeBackground from './ChatWelcomeBackground';
+import TypingIndicator from './TypingIndicator';
 import '../styles/ChatPanel.css';
 
 function StreamingText({ text, speed = 10 }) {
@@ -54,17 +56,6 @@ export default function ChatPanel({ fresh = false, onFreshSubmit }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Consume pending message from context
-  const pendingMessage = !fresh ? ctx.pendingMessage : null;
-  const setPendingMessage = !fresh ? ctx.setPendingMessage : null;
-
-  useEffect(() => {
-    if (!fresh && pendingMessage) {
-      ctx.sendMessage(pendingMessage);
-      setPendingMessage(null);
-    }
-  }, [pendingMessage]);
 
   const handleSend = () => {
     if (!input.trim() && attachments.length === 0) return;

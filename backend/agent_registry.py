@@ -352,6 +352,7 @@ class AgentRegistry:
                 base_url=host_base,
                 headers=_get_auth_headers(config),
                 timeout=httpx.Timeout(30.0, connect=5.0),
+                follow_redirects=True,
             )
 
             # Build tools from per-tool schemas defined in agents.json
@@ -423,10 +424,17 @@ class AgentRegistry:
             base = f"{parsed.scheme}://{parsed.netloc}"
             path = parsed.path  # e.g. "/mcp"
 
+            # Normalize path: ensure trailing slash so Starlette doesn't 307-redirect
+            # /mcp → /mcp/ (Azure Container Apps TLS terminates at ingress, so the
+            # redirect would downgrade to http:// internally — avoid entirely).
+            if path and not path.endswith("/"):
+                path = path + "/"
+
             conn.http_client = httpx.AsyncClient(
                 base_url=base,
                 headers=_get_auth_headers(config),
                 timeout=httpx.Timeout(60.0, connect=10.0),
+                follow_redirects=True,
             )
 
             # MCP initialize handshake

@@ -298,12 +298,39 @@ export function AgentProvider({ children }) {
 
     client.on(EventType.ACT, (event) => {
       const convId = activeConversationRef.current;
+      // Resolve friendly agent name from local agents list
+      const agentObj = agentsRef.current.find(a => a.id === event.agent_id);
+      const agentName = agentObj?.name || event.agent_id;
       updateLastOrchestratorMessage(convId, (m) => {
         if (!m.isStreaming) return m;
         const delegations = [...(m.delegations || [])];
-        if (!delegations.find(d => d.agent.toLowerCase().includes(event.agent_id))) {
-          delegations.push({ agent: event.agent_id, task: `Calling ${event.tool_name}`, status: 'in-progress' });
+        // Avoid duplicate entries for the same tool call
+        if (!delegations.find(d => d.toolKey === event.tool_name)) {
+          delegations.push({
+            toolKey: event.tool_name,          // internal key for OBSERVE matching
+            agent: agentName,
+            task: `Calling ${event.tool_name}`,
+            status: 'in-progress',
+          });
         }
+        return { ...m, delegations };
+      });
+    });
+
+    // Mark a delegation as completed or failed when its result arrives
+    client.on(EventType.OBSERVE, (event) => {
+      const convId = activeConversationRef.current;
+      updateLastOrchestratorMessage(convId, (m) => {
+        if (!m.isStreaming) return m;
+        const delegations = (m.delegations || []).map(d =>
+          d.toolKey === event.tool_name
+            ? {
+                ...d,
+                status: event.success ? 'completed' : 'error',
+                task: `${event.tool_name} · ${event.duration_ms}ms`,
+              }
+            : d
+        );
         return { ...m, delegations };
       });
     });

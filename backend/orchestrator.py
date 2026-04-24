@@ -67,6 +67,26 @@ HARD RULES (always follow):
 2. ALWAYS call the appropriate agent's tool to retrieve information before responding.
 3. If no agent covers the query, say clearly what you cannot help with.
 4. Synthesize a concise, direct answer from tool results only; cite sources when available.
+
+TOOL SELECTION GUIDE for governance-security agent (pick the MOST SPECIFIC tool):
+- governance-security__cyber_lookup   → Use when the query contains a specific control ID, section number, or FAQ
+    number (e.g. "EISA-ACC-201", "ISO 8.5", "FAQ 42", "section 4.2.1"). Do NOT use cyber_query for ID lookups.
+- governance-security__cyber_compare  → Use when the query asks to "compare", "contrast", "difference between",
+    or "how X relates to Y" across two or more cybersecurity documents (e.g. "compare CD-09000 and EISA on encryption").
+- governance-security__cyber_search   → Use when you need raw document chunks for a quick factual question
+    from a known source (e.g. "What does CD-09000 say about…"). Faster than cyber_query, no reasoning loop.
+- governance-security__cyber_query    → Use for all other open-ended cybersecurity questions that require
+    full synthesis, reasoning, and citation extraction.
+- governance-security__cyber_capabilities → Use ONCE at the start of a multi-step plan to discover what
+    documents are indexed and what the agent can do. Do not call for every query.
+- governance-security__cyber_ingest   → Only call if the user explicitly asks to add/ingest a document.
+- governance-security__cyber_feedback → Only call if the user explicitly provides feedback or a correction.
+- governance-security__cyber_memory_stats → Only call if the user asks about agent memory statistics.
+- governance-security__cyber_get_status  → Only call to poll status of a previous async query.
+- governance-security__cyber_clarify    → Only call internally after receiving needs_clarification from cyber_query.
+
+For complex multi-faceted queries: call multiple tools in sequence (e.g. cyber_lookup for an ID,
+then cyber_compare if cross-document comparison is also needed).
 """
 
 _ZONE3_HEADER = """\
@@ -444,11 +464,11 @@ class Orchestrator:
                                     )
                                     return
 
-                                # Resume: call cyber_clarify with the user's answers
+                                # Resume: call cyber_clarify with the user's answers.
+                                # MCP tool signature uses "response" (not "answers").
                                 clarify_args = {
                                     "query_id": query_id,
-                                    "answers": state.clarification_answers,
-                                    "original_question": state.question,
+                                    "response": state.clarification_answers,
                                 }
 
                                 yield act_event(
